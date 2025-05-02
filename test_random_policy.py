@@ -8,7 +8,7 @@
                 - What is the state space in the Hopper environment? Is it discrete or continuous? => continuous
                 - What is the action space in the Hopper environment? Is it discrete or continuous? => continuous
                 - What is the mass value of each link of the Hopper environment, in the source and target variants respectively? => check dynamic parameters after switching env creation from source to target, only torso changes
-                - what happens if you don't reset the environment even after the episode is over? => IThe environment won't go to the next timestep without resetting the starting space, causing: AssertionError: Cannot call env.step() before calling reset()
+                - what happens if you don't reset the environment even after the episode is over? => The environment won't go to the next timestep without resetting the starting space, causing: AssertionError: Cannot call env.step() before calling reset()
                 - When exactly is the episode over? => when the hopper is unhealty (fails task) or when timestep is reached
                 - What is an action here? => a vector representing movements of the link between body parts (3 links between 4 body parts)
 """
