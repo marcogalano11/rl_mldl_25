@@ -5,12 +5,12 @@
             Hopper environment.
 
             For example:
-                - What is the state space in the Hopper environment? Is it discrete or continuous?
-                - What is the action space in the Hopper environment? Is it discrete or continuous?
-                - What is the mass value of each link of the Hopper environment, in the source and target variants respectively?
-                - what happens if you don't reset the environment even after the episode is over?
-                - When exactly is the episode over?
-                - What is an action here?
+                - What is the state space in the Hopper environment? Is it discrete or continuous? => continuous
+                - What is the action space in the Hopper environment? Is it discrete or continuous? => continuous
+                - What is the mass value of each link of the Hopper environment, in the source and target variants respectively? => check dynamic parameters after switching env creation from source to target, only torso changes
+                - what happens if you don't reset the environment even after the episode is over? => IThe environment won't go to the next timestep without resetting the starting space, causing: AssertionError: Cannot call env.step() before calling reset()
+                - When exactly is the episode over? => when the hopper is unhealty (fails task) or when timestep is reached
+                - What is an action here? => a vector representing movements of the link between body parts (3 links between 4 body parts)
 """
 import pdb
 
@@ -28,7 +28,7 @@ def main():
 	print('Dynamics parameters:', env.get_parameters()) # masses of each link of the Hopper
 
 	n_episodes = 500
-	render = True
+	render = False
 
 	for episode in range(n_episodes):
 		done = False
@@ -42,6 +42,12 @@ def main():
 
 			if render:
 				env.render()
+
+"""Final considerations: THe body of the hopper is made of four parts: [torso, thigh, leg, foot]. Between these 
+   4 parts there are 3 links (hip, knee, ankle), that are the ones coordinated by the actions (in fact action 
+   space is (3,)).
+   The environment can be switched between source and target. Source is the more stable environment, where we train our agent.
+   Target is the test environment, the one that should be representing the real world. They may differ in weights."""
 
 	
 
