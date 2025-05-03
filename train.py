@@ -51,7 +51,7 @@ def main():
 
 		while not done:  # Loop until the episode is over
 
-			action, action_probabilities, value = agent.get_action(state, True)
+			action, action_probabilities, value = agent.get_action(state, False)
 			previous_state = state
 
 			state, reward, done, info = env.step(action.detach().cpu().numpy())
