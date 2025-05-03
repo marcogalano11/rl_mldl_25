@@ -145,7 +145,7 @@ class Agent(object):
             loss = actor_loss + critic_loss
 
             self.optimizer.zero_grad()
-            policy_loss.backward()
+            loss.backward()
             self.optimizer.step()
 
 
