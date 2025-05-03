@@ -51,16 +51,16 @@ def main():
 
 		while not done:  # Loop until the episode is over
 
-			action, action_probabilities = agent.get_action(state)
+			action, action_probabilities, value = agent.get_action(state, True)
 			previous_state = state
 
 			state, reward, done, info = env.step(action.detach().cpu().numpy())
 
-			agent.store_outcome(previous_state, state, action_probabilities, reward, done)
+			agent.store_outcome(previous_state, state, action_probabilities, reward, done, value)
 
 			train_reward += reward
 		
-		agent.update_policy()
+		agent.update_policy(reinforce = False)
 
 		if (episode+1)%args.print_every == 0:
 			print('Training episode:', episode)

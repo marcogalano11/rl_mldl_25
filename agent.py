@@ -38,6 +38,9 @@ class Policy(torch.nn.Module):
             Critic network
         """
         # TASK 3: critic network for actor-critic algorithm
+        self.fc1_critic = torch.nn.Linear(state_space, self.hidden)
+        self.fc2_critic = torch.nn.Linear(self.hidden, self.hidden)
+        self.fc3_critic_value = torch.nn.Linear(self.hidden, 1)
 
 
         self.init_weights()
@@ -66,9 +69,12 @@ class Policy(torch.nn.Module):
             Critic
         """
         # TASK 3: forward in the critic network
+        x_critic = self.tanh(self.fc1_critic(x))
+        x_critic = self.tanh(self.fc2_critic(x_critic))
+        value = self.fc3_critic_value(x_critic).squeeze(-1)
 
         
-        return normal_dist
+        return normal_dist, value
 
 
 class Agent(object):
@@ -83,16 +89,18 @@ class Agent(object):
         self.action_log_probs = []
         self.rewards = []
         self.done = []
+        self.values = []
 
 
-    def update_policy(self):
+    def update_policy(self, reinforce=True):
         action_log_probs = torch.stack(self.action_log_probs, dim=0).to(self.train_device).squeeze(-1)
         states = torch.stack(self.states, dim=0).to(self.train_device).squeeze(-1)
         next_states = torch.stack(self.next_states, dim=0).to(self.train_device).squeeze(-1)
         rewards = torch.stack(self.rewards, dim=0).to(self.train_device).squeeze(-1)
         done = torch.Tensor(self.done).to(self.train_device)
+        values = torch.stack(self.values, dim=0).to(self.train_device).squeeze(-1)
 
-        self.states, self.next_states, self.action_log_probs, self.rewards, self.done = [], [], [], [], []
+        self.states, self.next_states, self.action_log_probs, self.rewards, self.done , self.values = [], [], [], [], [], []
 
         #
         # TASK 2:
@@ -105,16 +113,17 @@ class Agent(object):
         discounted_returns = discount_rewards(rewards, self.gamma)
 
         #adding a baseline
-        b = 20
-        returns = discounted_returns - b
+        if reinforce:
+            b = 20
+            returns = discounted_returns - b
 
-        #compute the policy loss
-        policy_loss = -torch.sum(action_log_probs * returns)
+            #compute the policy loss
+            policy_loss = -torch.sum(action_log_probs * returns)
 
-        #gradient and step optimizer
-        self.optimizer.zero_grad()
-        policy_loss.backward()
-        self.optimizer.step()
+            #gradient and step optimizer
+            self.optimizer.zero_grad()
+            policy_loss.backward()
+            self.optimizer.step()
 
 
 
@@ -126,6 +135,19 @@ class Agent(object):
         #   - compute actor loss and critic loss
         #   - compute gradients and step the optimizer
         #
+        else:
+            advantages = discounted_returns - values
+
+            actor_loss = -torch.sum(action_log_probs * advantages.detach())
+
+            critic_loss = F.mse_loss(values, discounted_returns)
+
+            loss = actor_loss + critic_loss
+
+            self.optimizer.zero_grad()
+            policy_loss.backward()
+            self.optimizer.step()
+
 
         return        
 
@@ -134,10 +156,10 @@ class Agent(object):
         """ state -> action (3-d), action_log_densities """
         x = torch.from_numpy(state).float().to(self.train_device)
 
-        normal_dist = self.policy(x)
+        normal_dist, value = self.policy(x)
 
         if evaluation:  # Return mean
-            return normal_dist.mean, None
+            return normal_dist.mean, None, value
 
         else:   # Sample from the distribution
             action = normal_dist.sample()
@@ -145,13 +167,14 @@ class Agent(object):
             # Compute Log probability of the action [ log(p(a[0] AND a[1] AND a[2])) = log(p(a[0])*p(a[1])*p(a[2])) = log(p(a[0])) + log(p(a[1])) + log(p(a[2])) ]
             action_log_prob = normal_dist.log_prob(action).sum()
 
-            return action, action_log_prob
+            return action, action_log_prob, value
 
 
-    def store_outcome(self, state, next_state, action_log_prob, reward, done):
+    def store_outcome(self, state, next_state, action_log_prob, reward, done, value):
         self.states.append(torch.from_numpy(state).float())
         self.next_states.append(torch.from_numpy(next_state).float())
         self.action_log_probs.append(action_log_prob)
         self.rewards.append(torch.Tensor([reward]))
         self.done.append(done)
+        self.values.append(value)
 
