@@ -101,6 +101,19 @@ class Agent(object):
         #   - compute gradients and step the optimizer
         #
 
+        #using the predefined discounted_rewards function to compute discounted rewards from the current rewards and the defined gamma value
+        discounted_returns = discount_rewards(rewards, self.gamma)
+
+        #compute the policy loss
+        policy_loss = -torch.sum(action_log_probs * discounted_returns)
+
+        #gradient and step optimizer
+        self.optimizer.zero_grad()
+        policy_loss.backward()
+        self.optimizer.step()
+
+
+
 
         #
         # TASK 3:
