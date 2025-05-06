@@ -21,7 +21,7 @@ def main():
 
     model = PPO("MlpPolicy", train_env, verbose=1)
 
-    model.learn(total_timesteps=100_000)
+    model.learn(total_timesteps=1e6)
 
     model.save("ppo_hopper")
 
@@ -42,6 +42,7 @@ def main():
         action, _states = model.predict(obs)
         obs, reward, done, info = train_env.step(action)
         cumulative_reward += reward
+        #train_env.render()
         if done: 
             i += 1
             print(f"Cumulative reward of episode {i}: {cumulative_reward}")
