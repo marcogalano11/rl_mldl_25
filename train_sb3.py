@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def main():
+    # to be changed when shifting the training and testing environment
     train_env = gym.make('CustomHopper-target-v0')
     test_env = gym.make('CustomHopper-target-v0')
 
@@ -19,6 +20,7 @@ def main():
     print('Dynamics parameters:', train_env.get_parameters())  # masses of each link of the Hopper
 
     ppo_policy = False
+    training = False
 
     #
     # TASK 4 & 5: train and test policies on the Hopper env with stable-baselines3
@@ -26,29 +28,28 @@ def main():
 
     if ppo_policy:
 
-        model = PPO("MlpPolicy", train_env, verbose=1)
+        if training:
+            model = PPO("MlpPolicy", train_env, verbose=1)
 
-        model.learn(total_timesteps=1e6)
+            model.learn(total_timesteps=1e6)
 
-        model.save("ppo_hopper_target")
-
-        #If we want to use deletion and reloading
-
-        """ # del model #this only if we have trained a model in this script and we want to delete it
-        model = PPO.load("ppo_hopper") """
+            model.save("ppo_hopper_target")
+        
+        else:
+            # del model #this only if we have trained a model in this script and we want to delete it
+            model = PPO.load("ppo_hopper") #ppo_hopper for the source environment else ppo_hopper_target
 
     else:
+        if training:
+            model = SAC("MlpPolicy", train_env, verbose=1)
 
-        """ model = SAC("MlpPolicy", train_env, verbose=1)
+            model.learn(total_timesteps=500_000, log_interval=4)
 
-        model.learn(total_timesteps=500_000, log_interval=4)
+            model.save("sac_hopper_target")
 
-        model.save("sac_hopper_target") """
-
-        #If we want to use deletion and reloading
-
-        # del model #this only if we have trained a model in this script and we want to delete it
-        model = SAC.load("sac_hopper")
+        else:
+            # del model #this only if we have trained a model in this script and we want to delete it
+            model = SAC.load("sac_hopper") #sac_hopper for the source environment else sac_hopper_target
 
     #EVALUATION
     obs = test_env.reset()
@@ -69,7 +70,7 @@ def main():
             cumulative_reward = 0
             obs = test_env.reset()
             i += 1
-    title = "Simulation on a Source-Target environment with SAC"
+    title = "Simulation on a Source-Target environment with SAC" #change when evaluating
     print_plot_rewards(rewards,title)
 
 def print_plot_rewards(rewards,title):
@@ -79,7 +80,7 @@ def print_plot_rewards(rewards,title):
     plt.xticks(x, labels=[str(val) for val in x])
     plt.show()
 
-    with open("output_source_target_sac.txt", "w") as file:
+    with open("output_source_target_sac.txt", "w") as file: #change the name of the file when evaluating
         for i in range(len(rewards)):
             file.write(f"Cumulative reward of episode {i+1}: {rewards[i]}\n")
         file.write(f"\nAverage return: {np.mean(rewards)}")
