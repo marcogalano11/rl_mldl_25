@@ -11,8 +11,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def main():
-    train_env = gym.make('CustomHopper-source-v0')
-    test_env = gym.make('CustomHopper-source-v0')
+    train_env = gym.make('CustomHopper-target-v0')
+    test_env = gym.make('CustomHopper-target-v0')
 
     print('State space:', train_env.observation_space)  # state-space
     print('Action space:', train_env.action_space)  # action-space
@@ -26,24 +26,24 @@ def main():
 
     if ppo_policy:
 
-        """model = PPO("MlpPolicy", train_env, verbose=1)
+        model = PPO("MlpPolicy", train_env, verbose=1)
 
         model.learn(total_timesteps=1e6)
 
-        model.save("ppo_hopper")"""
+        model.save("ppo_hopper_target")
 
         #If we want to use deletion and reloading
 
-        # del model #this only if we have trained a model in this script and we want to delete it
-        model = PPO.load("ppo_hopper")
+        """ # del model #this only if we have trained a model in this script and we want to delete it
+        model = PPO.load("ppo_hopper") """
 
     else:
 
-        """model = SAC("MlpPolicy", train_env, verbose=1)
+        """ model = SAC("MlpPolicy", train_env, verbose=1)
 
         model.learn(total_timesteps=500_000, log_interval=4)
 
-        model.save("sac_hopper")"""
+        model.save("sac_hopper_target") """
 
         #If we want to use deletion and reloading
 
@@ -79,7 +79,7 @@ def print_plot_rewards(rewards,title):
     plt.xticks(x, labels=[str(val) for val in x])
     plt.show()
 
-    with open("output_source_source_sac.txt", "w") as file:
+    with open("output_source_target_sac.txt", "w") as file:
         for i in range(len(rewards)):
             file.write(f"Cumulative reward of episode {i+1}: {rewards[i]}\n")
         file.write(f"\nAverage return: {np.mean(rewards)}")
