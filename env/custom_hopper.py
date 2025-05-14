@@ -71,8 +71,8 @@ class CustomHopper(MujocoEnv, utils.EzPickle):
         """Reset the environment to a random initial state"""
         if self.param != None:
             self.sample_parameters()
-        qpos = self.init_qpos + self.np_random.uniform(low=-.01, high=.01, size=self.model.nq)
-        qvel = self.init_qvel + self.np_random.uniform(low=-.01, high=.01, size=self.model.nv)
+        qpos = self.init_qpos + self.np_random.uniform(low=-.005, high=.01, size=self.model.nq)
+        qvel = self.init_qvel + self.np_random.uniform(low=-.005, high=.01, size=self.model.nv)
         self.set_state(qpos, qvel)
         return self._get_obs()
 

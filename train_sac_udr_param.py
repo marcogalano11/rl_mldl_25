@@ -23,6 +23,8 @@ def main():
     # TASK 4 & 5: train and test policies on the Hopper env with stable-baselines3
     #
     modelli= ['PPO','SAC']
+    #modelli= ['PPO']
+    modelli= ['SAC']
     params = [0.1, 0.3, 0.5, 0.7, 1.0]
     for modello in modelli:
         for param in params:
@@ -38,7 +40,7 @@ def main():
 
                     model.learn(total_timesteps=1_000_000)
 
-                    model.save(f"ppo_hopper_target_param_{param}")
+                    model.save(f"ppo_hopper_source_param_{param}")
 
                 
                 else:
@@ -51,7 +53,7 @@ def main():
 
                     model.learn(total_timesteps=1_000_000, log_interval=4)
 
-                    model.save(f"sac_hopper_target_param_{param}")
+                    model.save(f"sac_hopper_source_param_{param}")
 
                 else:
                     # del model #this only if we have trained a model in this script and we want to delete it
