@@ -20,7 +20,7 @@ def main():
     print('Dynamics parameters:', train_env.get_parameters())  # masses of each link of the Hopper
 
     ppo_policy = False
-    training = False
+    training = True
 
     #
     # TASK 4 & 5: train and test policies on the Hopper env with stable-baselines3
@@ -31,7 +31,7 @@ def main():
         if training:
             model = PPO("MlpPolicy", train_env, verbose=1)
 
-            model.learn(total_timesteps=1e6)
+            model.learn(total_timesteps=10000)
 
             model.save("ppo_hopper_target")
         
@@ -43,7 +43,7 @@ def main():
         if training:
             model = SAC("MlpPolicy", train_env, verbose=1)
 
-            model.learn(total_timesteps=500_000, log_interval=4)
+            model.learn(total_timesteps=40_000, log_interval=4)
 
             model.save("sac_hopper_target")
 
