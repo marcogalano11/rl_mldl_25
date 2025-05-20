@@ -7,7 +7,7 @@ import gym
 from gym import utils
 from .mujoco_env import MujocoEnv
 class CustomHopper(MujocoEnv, utils.EzPickle):
-    def __init__(self, param, domain=None):
+    def __init__(self, param=None, domain=None):
         MujocoEnv.__init__(self, 4)
         utils.EzPickle.__init__(self)
         self.param = param
