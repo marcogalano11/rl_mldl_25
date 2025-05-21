@@ -42,7 +42,7 @@ def main():
         if training:
 
             n_steps_list = [1024, 2048, 4096]
-            learning_rates = [1e-4, 3e-4, 1e-3]
+            learning_rates = [1e-5] #[1e-5, 3e-4, 1e-3]
             clip_ranges = [0.1, 0.2, 0.3]
 
 
@@ -58,7 +58,7 @@ def main():
 
                 mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
 
-                with open("tuning_results.txt", "a") as tuning_results:
+                with open("tuning_results_lr_1e-5.txt", "a") as tuning_results:
                     tuning_results.write(f"{config_name}; avg: {mean_reward}, std: {std_reward}\n")
 
         else:
