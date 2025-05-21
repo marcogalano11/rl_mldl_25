@@ -26,7 +26,8 @@ def main():
     print('Dynamics parameters:', train_env.get_parameters())  # masses of each link of the Hopper
 
     policy = "PPO"
-    training = True
+    tuning = True
+    training = False
     evaluation = False
 
     random.seed(SEED)
@@ -39,10 +40,10 @@ def main():
 
     if policy=="PPO":
 
-        if training:
+        if tuning:
 
             n_steps_list = [1024, 2048, 4096]
-            learning_rates = [1e-5] #[1e-5, 3e-4, 1e-3]
+            learning_rates = [1e-5, 3e-4, 1e-3]
             clip_ranges = [0.1, 0.2, 0.3]
 
 
@@ -50,20 +51,40 @@ def main():
 
                 config_name = f"ppo_nsteps_{n_steps}_lr_{lr}_cliprange_{clip_range}"
 
+                train_env = gym.make('CustomHopper-source-v0')
+
+
                 model = PPO("MlpPolicy", train_env, verbose=0, n_steps=n_steps, learning_rate=lr, clip_range=clip_range, seed=SEED)
 
                 print(f"Training: {config_name}")
 
                 model.learn(total_timesteps=1e6)
 
+                test_env = gym.make('CustomHopper-target-v0')
+
                 mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
 
                 with open("tuning_results_lr_1e-5.txt", "a") as tuning_results:
                     tuning_results.write(f"{config_name}; avg: {mean_reward}, std: {std_reward}\n")
 
-        else:
+        elif training:
+
+            model = PPO("MlpPolicy", train_env, verbose=1, n_steps=1024, learning_rate=3e-4, clip_range=0.3, seed=SEED)
+            model.learn(total_timesteps=1e6)
+            #model = PPO.load("tuned_ppo_source")
+            means = np.zeros(3)
+            stds = np.zeros(3)
+
+            for i in range(3):
+                mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
+                print(f"Eval {i+1}: avg: {mean_reward}, std: {std_reward}\n")
+                means[i] = mean_reward
+                stds[i] = std_reward
+            
+            print(f"Average mean: {means.mean()}, averagestd: {stds.mean()}")
+
             # del model #this only if we have trained a model in this script and we want to delete it
-            model = PPO.load("ppo_hopper") #ppo_hopper for the source environment else ppo_hopper_target
+            model.save("tuned_ppo_source") #ppo_hopper for the source environment else ppo_hopper_target
 
     else:
         if training:
