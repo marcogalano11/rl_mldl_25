@@ -8,6 +8,7 @@ import gym
 from env.custom_hopper import *
 from stable_baselines3 import PPO, SAC
 from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.monitor import Monitor
 import itertools
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,8 +19,8 @@ SEED = 42
 
 def main():
     # to be changed when shifting the training and testing environment
-    train_env = gym.make('CustomHopper-source-v0')
-    test_env = gym.make('CustomHopper-target-v0')
+    train_env = Monitor(gym.make('CustomHopper-source-v0'))
+    test_env = Monitor(gym.make('CustomHopper-target-v0'))
 
     print('State space:', train_env.observation_space)  # state-space
     print('Action space:', train_env.action_space)  # action-space
@@ -51,7 +52,7 @@ def main():
 
                 config_name = f"ppo_nsteps_{n_steps}_lr_{lr}_cliprange_{clip_range}"
 
-                train_env = gym.make('CustomHopper-source-v0')
+                train_env = Monitor(gym.make('CustomHopper-source-v0'))
 
 
                 model = PPO("MlpPolicy", train_env, verbose=0, n_steps=n_steps, learning_rate=lr, clip_range=clip_range, seed=SEED)
@@ -60,11 +61,11 @@ def main():
 
                 model.learn(total_timesteps=1e6)
 
-                test_env = gym.make('CustomHopper-target-v0')
+                test_env = Monitor(gym.make('CustomHopper-target-v0'))
 
                 mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
 
-                with open("tuning_results_lr_1e-5.txt", "a") as tuning_results:
+                with open("tuning_results_2.txt", "a") as tuning_results:
                     tuning_results.write(f"{config_name}; avg: {mean_reward}, std: {std_reward}\n")
 
         elif training:
