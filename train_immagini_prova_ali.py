@@ -93,8 +93,14 @@ def main():
     torch.manual_seed(SEED)
 
     train_env = RGBStackWrapper(Monitor(CustomHopper(domain='source', param=None)))
+    train_env.seed(SEED)
+    train_env.action_space.seed(SEED)
+    train_env.observation_space.seed(SEED)
+    
     test_env = RGBStackWrapper(Monitor(CustomHopper(domain='source', param=None)))
-
+    test_env.seed(SEED)
+    test_env.action_space.seed(SEED)
+    test_env.observation_space.seed(SEED)
 
     print('State space:', train_env.observation_space)
     print('Action space:', train_env.action_space)
