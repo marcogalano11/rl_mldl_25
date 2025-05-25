@@ -53,6 +53,9 @@ def main():
                 config_name = f"ppo_nsteps_{n_steps}_lr_{lr}_cliprange_{clip_range}"
 
                 train_env = Monitor(gym.make('CustomHopper-source-v0'))
+                train_env.seed(SEED)
+                train_env.action_space.seed(SEED)
+                train_env.observation_space.seed(SEED)
 
 
                 model = PPO("MlpPolicy", train_env, verbose=0, n_steps=n_steps, learning_rate=lr, clip_range=clip_range, seed=SEED)
@@ -62,6 +65,9 @@ def main():
                 model.learn(total_timesteps=1e6)
 
                 test_env = Monitor(gym.make('CustomHopper-target-v0'))
+                test_env.seed(SEED)
+                test_env.action_space.seed(SEED)
+                test_env.observation_space.seed(SEED)
 
                 mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
 
@@ -121,6 +127,7 @@ def main():
                 i += 1
         title = "Simulation on a Source-Target environment with SAC" #change when evaluating
         print_plot_rewards(rewards,title)
+
 
 def print_plot_rewards(rewards,title):
     x = np.arange(1,len(rewards)+1)
