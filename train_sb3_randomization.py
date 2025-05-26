@@ -51,7 +51,6 @@ def main():
 
     if tuning:
 
-        params = {"n_steps": 4096, "lr": 1e-3, "clip_range": 0.1}
         distributions = ["uniform", "normal", "lognormal"]
         distribution_parameters = [0.1,0.4,0.7,1]
 

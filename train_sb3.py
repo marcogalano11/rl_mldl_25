@@ -132,8 +132,9 @@ def evaluate(model, test_env, modelName):
             cumulative_reward = 0
             obs = test_env.reset()
             i += 1
-            title = f"Simulation on a Source-Source environment with {modelName}"
-            print_plot_rewards(rewards,title)
+
+    title = f"Simulation on a Source-Source environment with {modelName}"
+    print_plot_rewards(rewards,title)
 
 def evaluate_bounds(parameters, environment="source"):
 
@@ -172,7 +173,7 @@ def print_plot_rewards(rewards,title):
     plt.xticks(x, labels=[str(val) for val in x])
     plt.show()
 
-    print("Printing cumulative rewards of {title}\n")
+    print(f"Printing cumulative rewards of {title}\n")
     for i in range(len(rewards)):
         print(f"Cumulative reward of episode {i+1}: {rewards[i]}\n")
     print(f"\nAverage cumulative reward: {np.mean(rewards)}\n")
