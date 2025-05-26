@@ -7,7 +7,7 @@ import gym
 from gym import utils
 from .mujoco_env import MujocoEnv
 class CustomHopper(MujocoEnv, utils.EzPickle):
-    def __init__(self, param=None, domain=None, distribution=None):
+    def __init__(self, domain=None, param=None, distribution=None):
         MujocoEnv.__init__(self, 4)
         utils.EzPickle.__init__(self)
         self.param = param
@@ -47,7 +47,8 @@ class CustomHopper(MujocoEnv, utils.EzPickle):
         else:
             raise ValueError(f"Unsupported distribution type: {self.distribution}")
 
-        self.sim.model.body_mass[2:] = new_masses
+        #self.sim.model.body_mass[2:] = new_masses
+        return new_masses
 
 
     def get_parameters(self):
@@ -57,7 +58,7 @@ class CustomHopper(MujocoEnv, utils.EzPickle):
 
     def set_parameters(self, task):
         """Set each hopper link's mass to a new value"""
-        self.sim.model.body_mass[1:] = task
+        self.sim.model.body_mass[2:] = task
 
     def step(self, a):
         """Step the simulation to the next timestep
