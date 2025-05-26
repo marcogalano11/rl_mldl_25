@@ -43,7 +43,7 @@ def main():
 
         if tuning:
 
-            n_steps_list = [1024, 2048, 4096]
+            n_steps_list = [1024] #[1024, 2048, 4096]
             learning_rates = [1e-5, 3e-4, 1e-3]
             clip_ranges = [0.1, 0.2, 0.3]
 
@@ -71,30 +71,18 @@ def main():
 
                 mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
 
-                with open("tuning_results_2.txt", "a") as tuning_results:
+                with open("tuning_results_marco.txt", "a") as tuning_results:
                     tuning_results.write(f"{config_name}; avg: {mean_reward}, std: {std_reward}\n")
 
         elif training:
-
-            model = PPO("MlpPolicy", train_env, verbose=1, n_steps=1024, learning_rate=3e-4, clip_range=0.3, seed=SEED)
-            model.learn(total_timesteps=1e6)
-            #model = PPO.load("tuned_ppo_source")
-            means = np.zeros(3)
-            stds = np.zeros(3)
-
-            for i in range(3):
-                mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
-                print(f"Eval {i+1}: avg: {mean_reward}, std: {std_reward}\n")
-                means[i] = mean_reward
-                stds[i] = std_reward
-            
-            print(f"Average mean: {means.mean()}, averagestd: {stds.mean()}")
-
-            # del model #this only if we have trained a model in this script and we want to delete it
-            model.save("tuned_ppo_source") #ppo_hopper for the source environment else ppo_hopper_target
+            print("Evaluating Lower Bound\n")
+            evaluate_bounds("source")
+            print("Evaluating Upper Bound")
+            evaluate_bounds("target")
 
     else:
         if training:
+
             model = SAC("MlpPolicy", train_env, verbose=1)
 
             model.learn(total_timesteps=500_000, log_interval=4)
@@ -128,6 +116,37 @@ def main():
         title = "Simulation on a Source-Target environment with SAC" #change when evaluating
         print_plot_rewards(rewards,title)
 
+
+def evaluate_bounds(environment="source"):
+    train_env = Monitor(gym.make(f"CustomHopper-{environment}-v0"))
+    train_env.seed(SEED)
+    train_env.seed(SEED)
+    train_env.action_space.seed(SEED)
+    train_env.observation_space.seed(SEED)
+
+    model = PPO("MlpPolicy", train_env, verbose=1, n_steps=4096, learning_rate=3e-4, clip_range=0.2, seed=SEED)
+    model.learn(total_timesteps=1e6)
+    model.save(f"tuned_ppo_{environment}")
+    #model = PPO.load(f"tuned_ppo_{environment}")
+    means = np.zeros(3)
+    stds = np.zeros(3)
+
+    for i in range(3):
+
+        test_env = Monitor(gym.make('CustomHopper-target-v0'))
+        test_env.seed(SEED)
+        test_env.seed(SEED)
+        test_env.action_space.seed(SEED)
+        test_env.observation_space.seed(SEED)
+
+        mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
+        means[i] = mean_reward
+        stds[i] = std_reward
+
+    #print(f"Bound {environment}-target: Average mean: {means.mean()}, Average std: {stds.mean()}\n")
+            
+    with open("bounds.txt", "a") as bounds:
+        bounds.write(f"Bound {environment}-target: Average mean: {means.mean()}, Average std: {stds.mean()}\n")
 
 def print_plot_rewards(rewards,title):
     x = np.arange(1,len(rewards)+1)
