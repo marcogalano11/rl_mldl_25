@@ -51,22 +51,25 @@ def main():
 
     if tuning:
 
-        distributions = ["uniform", "normal", "lognormal"]
-        distribution_parameters = [0.1,0.4,0.7,1]
+        distributions = [{"distr":"normal", "param":0.4}, {"distr":"lognormal", "param":0.4}]
+        n_steps_list = [2048, 4096]
+        learning_rates = [3e-4, 1e-3]
+        clip_ranges = [0.1, 0.2, 0.3]
 
 
-        for distribution, distr_param in itertools.product(distributions, distribution_parameters):
+        for distribution, n_steps, lr, clip_range in itertools.product(distributions, n_steps_list, learning_rates, clip_ranges):
             
-            config_name = f"randomized_ppo_distribution_{distribution}_param_{distr_param}"
+            config_name = f"randomized_ppo_distribution_{distribution['distr']}_{distribution['param']}_n_steps_{n_steps}_lr_{lr}_clip_range_{clip_range}"
 
-            train_env = Monitor(gym.make('CustomHopper-source-v0', param=distr_param, distribution=distribution))
+            train_env = Monitor(gym.make('CustomHopper-source-v0', param=distribution["param"], 
+                                         distribution=distribution["distr"]))
             train_env.seed(SEED)
             train_env.action_space.seed(SEED)
             train_env.observation_space.seed(SEED)
 
 
-            model = PPO("MlpPolicy", train_env, verbose=0, n_steps=params["n_steps"], 
-                        learning_rate=params["lr"], clip_range=params["clip_range"], seed=SEED)
+            model = PPO("MlpPolicy", train_env, verbose=0, n_steps=n_steps, 
+                        learning_rate=lr, clip_range=clip_range, seed=SEED)
 
             print(f"Training: {config_name}")
 
@@ -79,7 +82,7 @@ def main():
 
             mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
 
-            with open("tuning_results_randomization.txt", "a") as tuning_results:
+            with open("tuning_results_randomization_parameters.txt", "a") as tuning_results:
                 tuning_results.write(f"{config_name}; avg: {mean_reward}, std: {std_reward}\n")
 
     else:

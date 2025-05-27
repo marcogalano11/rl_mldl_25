@@ -1,0 +1,12 @@
+randomized_ppo_distribution_uniform_param_0.1; avg: 703.2322376799999, std: 6.891797813313564
+randomized_ppo_distribution_uniform_param_0.4; avg: 779.5006895999999, std: 21.855321246968877
+randomized_ppo_distribution_uniform_param_0.7; avg: 950.7249352, std: 8.839636931341389
+randomized_ppo_distribution_uniform_param_1; avg: 910.4688908799998, std: 17.40688519681665
+randomized_ppo_distribution_normal_param_0.1; avg: 910.1631073400001, std: 48.04017678480703
+randomized_ppo_distribution_normal_param_0.4; avg: 1055.69469062, std: 32.73208687210478
+randomized_ppo_distribution_normal_param_0.7; avg: 711.7513266799999, std: 8.040124033688722
+randomized_ppo_distribution_normal_param_1; avg: 805.57552096, std: 19.927506954195685
+randomized_ppo_distribution_lognormal_param_0.1; avg: 895.7126801400002, std: 15.171440777803271
+randomized_ppo_distribution_lognormal_param_0.4; avg: 1081.22284528, std: 13.555629645279517
+randomized_ppo_distribution_lognormal_param_0.7; avg: 904.2868282799999, std: 20.441243138794075
+randomized_ppo_distribution_lognormal_param_1; avg: 907.7402378999999, std: 45.73558179075443

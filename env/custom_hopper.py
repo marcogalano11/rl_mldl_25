@@ -33,13 +33,13 @@ class CustomHopper(MujocoEnv, utils.EzPickle):
             low = (1 - self.param) * base_masses
             high = (1 + self.param) * base_masses
             new_masses = np.random.uniform(low=low, high=high)
-              
+            new_masses = np.clip(new_masses, a_min=1e-4, a_max=None) # to avoid zero or negative masses
         
         elif self.distribution == "normal":
             mean = base_masses
             std = self.param * base_masses
             new_masses = np.random.normal(loc=mean, scale=std)
-            new_masses = np.clip(new_masses, a_min=1e-4, a_max=None)  
+            new_masses = np.clip(new_masses, a_min=1e-4, a_max=None) # to avoid zero or negative masses
 
         elif self.distribution == "lognormal":
             new_masses = base_masses * np.random.lognormal(mean=0, sigma=self.param)
