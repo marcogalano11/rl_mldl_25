@@ -10,15 +10,31 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from env.custom_hopper import CustomHopper
+import os
 SEED = 42
+def v_crop(pil_img, crop_top=0, crop_bottom=0):
+    width, height = pil_img.size
+    top = crop_top
+    bottom = height - crop_bottom
+    return pil_img.crop((0, top, width, bottom))
+  
+def h_crop(pil_img, crop_left=0, crop_right=0):
+    width, height = pil_img.size
+    left = crop_left
+    right = width - crop_right
+    return pil_img.crop((left, 0, right, height))
 
 # Preprocessing immagini RGB
 preprocess = transforms.Compose([
     transforms.ToPILImage(),
-    transforms.Resize((200, 200)),  # Resize to 200x200
+    # transforms.Resize((200, 200)),  # Resize to 200x200
+    # transforms.CenterCrop((400,100)),
+    transforms.Lambda(lambda img: v_crop(img, crop_top=135, crop_bottom=65)),
+    transforms.Lambda(lambda img: h_crop(img, crop_left=195, crop_right=175)),  # Crop left 100 pixels
+
+        # Crop top 100 pixels
     transforms.ToTensor()  # shape: [C, H, W] ∈ [0,1]
 ])
-
 # === FrameStack RGB ===
 class RGBStackWrapper(gym.ObservationWrapper):
     def __init__(self, env, n_frames=4):
@@ -27,7 +43,7 @@ class RGBStackWrapper(gym.ObservationWrapper):
         self.frames = deque([], maxlen=n_frames)
         self.observation_space = spaces.Box(
             low=0.0, high=1.0,
-            shape=(3 * n_frames, 200, 200),
+            shape=(3 * n_frames, 300, 130),
             dtype=np.float32
         )
 
@@ -35,6 +51,11 @@ class RGBStackWrapper(gym.ObservationWrapper):
         self.env.reset()
         frame = self.env.render(mode='rgb_array')
         processed = preprocess(frame)
+        # salva immagine 
+        pil_image = transforms.ToPILImage()(processed)
+        os.makedirs('frames', exist_ok=True)
+        pil_image.save('frames/frame_reset.png')
+
         for _ in range(self.n_frames):
             self.frames.append(processed.clone())
         return torch.cat(list(self.frames), dim=0).numpy()
