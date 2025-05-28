@@ -16,7 +16,7 @@ import os
 
 SEED = 42
 
-GlfwContext(offscreen=True)  # Create a window to init GLFW.
+#GlfwContext(offscreen=True)  # Create a window to init GLFW.
 
 def v_crop(pil_img, crop_top=0, crop_bottom=0):
     width, height = pil_img.size
@@ -70,11 +70,7 @@ class RGBStackWrapper(gym.ObservationWrapper):
         frame = self.env.render(mode='rgb_array')
         processed = preprocess(frame)
 
-        # salva immagine 
-        pil_image = transforms.ToPILImage()(processed)
-        os.makedirs('frames', exist_ok=True)
-        pil_image.save('frames/frame_reset.png')
-
+        
         for _ in range(self.n_frames):
             self.frames.append(processed.clone())
         return torch.cat(list(self.frames), dim=0).numpy()
@@ -83,6 +79,10 @@ class RGBStackWrapper(gym.ObservationWrapper):
         _, reward, done, info = self.env.step(action)
         frame = self.env.render(mode='rgb_array')
         processed = preprocess(frame)
+        # salva immagine 
+        pil_image = transforms.ToPILImage()(processed)
+        os.makedirs('frames', exist_ok=True)
+        pil_image.save('frames/frame_reset.png')
         self.frames.append(processed)
         return torch.cat(list(self.frames), dim=0).numpy(), reward, done, info
 
