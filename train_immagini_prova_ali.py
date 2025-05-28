@@ -112,7 +112,7 @@ def main():
         features_extractor_kwargs=dict(features_dim=512)
     )
 
-    model = PPO("CnnPolicy", train_env, policy_kwargs=policy_kwargs, n_steps=128, verbose=1, seed=SEED)
+    model = PPO("CnnPolicy", train_env, device='cuda', policy_kwargs=policy_kwargs, n_steps=128, verbose=1, seed=SEED)
     model.learn(total_timesteps=1_000_000)
     model.save("ppo_rgb_4frame_source")
 
