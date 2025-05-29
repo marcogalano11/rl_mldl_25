@@ -1,2 +1,2 @@
-Bound source-target: Average mean: 1318.7132174399999, Average std: 115.26010369718757
-Bound target-target: Average mean: 1723.13788372, Average std: 3.204159913556025
+Bound source-target: Average mean: 804.2752456800002, Average std: 6.877598926684995
+Bound target-target: Average mean: 1714.2335096, Average std: 5.454831478159119

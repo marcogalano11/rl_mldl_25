@@ -29,7 +29,7 @@ def main():
     np.random.seed(SEED)
     torch.manual_seed(SEED)
 
-    params = {"n_steps": 4096, "lr": 1e-3, "clip_range": 0.1}
+    params = {"n_steps": 4096, "lr": 3e-4, "clip_range": 0.1}
 
     train_env = Monitor(gym.make('CustomHopper-source-v0', param=0.1, distribution="uniform"))
     train_env.seed(SEED)
@@ -51,41 +51,51 @@ def main():
 
     if tuning:
 
-        distributions = [{"distr":"normal", "param":0.4}, {"distr":"lognormal", "param":0.4}]
-        n_steps_list = [2048, 4096]
-        learning_rates = [3e-4, 1e-3]
-        clip_ranges = [0.1, 0.2, 0.3]
+        distributions = ["uniform", "normal", "lognormal"]
+        distr_params = [0.1,0.4,0.7,1]
 
 
-        for distribution, n_steps, lr, clip_range in itertools.product(distributions, n_steps_list, learning_rates, clip_ranges):
+        for distribution, param in itertools.product(distributions, distr_params):
             
-            config_name = f"randomized_ppo_distribution_{distribution['distr']}_{distribution['param']}_n_steps_{n_steps}_lr_{lr}_clip_range_{clip_range}"
+            config_name = f"randomized_ppo_distribution_{distribution}_{param}"
 
-            train_env = Monitor(gym.make('CustomHopper-source-v0', param=distribution["param"], 
-                                         distribution=distribution["distr"]))
+            train_env = Monitor(gym.make('CustomHopper-source-v0', param=param, distribution=distribution))
             train_env.seed(SEED)
             train_env.action_space.seed(SEED)
             train_env.observation_space.seed(SEED)
 
 
-            model = PPO("MlpPolicy", train_env, verbose=0, n_steps=n_steps, 
-                        learning_rate=lr, clip_range=clip_range, seed=SEED)
+            model = PPO("MlpPolicy", train_env, verbose=0, n_steps=params["n_steps"], 
+                        learning_rate=params["lr"], clip_range=params["clip_range"], seed=SEED)
 
             print(f"Training: {config_name}")
 
             model.learn(total_timesteps=1e6)
 
-            test_env = Monitor(gym.make('CustomHopper-target-v0'))
+            test_env = Monitor(gym.make('CustomHopper-source-v0'))
             test_env.seed(SEED)
             test_env.action_space.seed(SEED)
             test_env.observation_space.seed(SEED)
 
             mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
 
-            with open("tuning_results_randomization_parameters.txt", "a") as tuning_results:
+            with open("tuning_results_randomization_onsource.txt", "a") as tuning_results:
                 tuning_results.write(f"{config_name}; avg: {mean_reward}, std: {std_reward}\n")
 
     else:
+
+        distribution = {"distr":"lognormal", "param":0.1}
+
+        train_env = Monitor(gym.make('CustomHopper-source-v0', param=distribution["param"], 
+                                     distribution=distribution["distr"]))
+        train_env.seed(SEED)
+        train_env.action_space.seed(SEED)
+        train_env.observation_space.seed(SEED)
+        
+        test_env = Monitor(gym.make('CustomHopper-target-v0'))
+        test_env.seed(SEED)
+        test_env.action_space.seed(SEED)
+        test_env.observation_space.seed(SEED)
 
         model = PPO("MlpPolicy", train_env, verbose=1, n_steps=params["n_steps"], 
                     learning_rate=params["lr"], clip_range=params["clip_range"], seed=SEED)

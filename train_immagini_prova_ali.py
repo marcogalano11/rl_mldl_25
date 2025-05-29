@@ -10,6 +10,10 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from env.custom_hopper import CustomHopper
+from mujoco_py import GlfwContext
+
+GlfwContext(offscreen=True)
+
 SEED = 42
 
 # Preprocessing immagini RGB

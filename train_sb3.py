@@ -67,7 +67,7 @@ def main():
 
                 model.learn(total_timesteps=1e6)
 
-                test_env = Monitor(gym.make('CustomHopper-target-v0'))
+                test_env = Monitor(gym.make('CustomHopper-source-v0'))
                 test_env.seed(SEED)
                 test_env.action_space.seed(SEED)
                 test_env.observation_space.seed(SEED)
@@ -79,7 +79,7 @@ def main():
 
         elif task=="bounding":
 
-            params = {"n_steps": 4096, "lr": 1e-3, "clip_range": 0.1}
+            params = {"n_steps": 4096, "lr": 3e-4, "clip_range": 0.1}
 
             print("Evaluating Lower Bound\n")
             evaluate_bounds(params, environment="source")
