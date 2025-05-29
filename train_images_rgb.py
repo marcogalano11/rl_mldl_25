@@ -1,4 +1,6 @@
+from PIL import Image
 import gym
+from mujoco_py import GlfwContext
 import numpy as np
 import random
 import torch
@@ -11,11 +13,11 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from env.custom_hopper import CustomHopper
 import os
-from mujoco_py import GlfwContext
-
-GlfwContext(offscreen=True)
 
 SEED = 42
+
+#GlfwContext(offscreen=True)  # Create a window to init GLFW.
+
 def v_crop(pil_img, crop_top=0, crop_bottom=0):
     width, height = pil_img.size
     top = crop_top
@@ -28,6 +30,19 @@ def h_crop(pil_img, crop_left=0, crop_right=0):
     right = width - crop_right
     return pil_img.crop((left, 0, right, height))
 
+def isolate_hopper(pil_img):
+    img_np = np.array(pil_img)
+
+    lower = np.array([60, 40, 20])   # BGR o RGB, dipende dal formato
+    upper = np.array([160, 120, 80])
+
+    mask = np.all((img_np >= lower) & (img_np <= upper), axis=-1)
+    result = np.zeros_like(img_np)
+    result[mask] = img_np[mask]
+
+    return Image.fromarray(result)
+
+
 # Preprocessing immagini RGB
 preprocess = transforms.Compose([
     transforms.ToPILImage(),
@@ -35,8 +50,7 @@ preprocess = transforms.Compose([
     # transforms.CenterCrop((400,100)),
     transforms.Lambda(lambda img: v_crop(img, crop_top=135, crop_bottom=65)),
     transforms.Lambda(lambda img: h_crop(img, crop_left=195, crop_right=175)),  # Crop left 100 pixels
-
-        # Crop top 100 pixels
+    transforms.Lambda(lambda img: isolate_hopper(img)),
     transforms.ToTensor()  # shape: [C, H, W] ∈ [0,1]
 ])
 # === FrameStack RGB ===
@@ -55,11 +69,8 @@ class RGBStackWrapper(gym.ObservationWrapper):
         self.env.reset()
         frame = self.env.render(mode='rgb_array')
         processed = preprocess(frame)
-        # salva immagine 
-        pil_image = transforms.ToPILImage()(processed)
-        os.makedirs('frames', exist_ok=True)
-        pil_image.save('frames/frame_reset.png')
 
+        
         for _ in range(self.n_frames):
             self.frames.append(processed.clone())
         return torch.cat(list(self.frames), dim=0).numpy()
@@ -68,6 +79,10 @@ class RGBStackWrapper(gym.ObservationWrapper):
         _, reward, done, info = self.env.step(action)
         frame = self.env.render(mode='rgb_array')
         processed = preprocess(frame)
+        # salva immagine 
+        pil_image = transforms.ToPILImage()(processed)
+        os.makedirs('frames', exist_ok=True)
+        pil_image.save('frames/frame_reset.png')
         self.frames.append(processed)
         return torch.cat(list(self.frames), dim=0).numpy(), reward, done, info
 
@@ -137,7 +152,7 @@ def main():
         features_extractor_kwargs=dict(features_dim=512)
     )
 
-    model = PPO("CnnPolicy", train_env, device='cuda', policy_kwargs=policy_kwargs, n_steps=128, verbose=1, seed=SEED)
+    model = PPO("CnnPolicy", train_env, device='cuda', policy_kwargs=policy_kwargs, n_steps=256, verbose=1, seed=SEED)
     model.learn(total_timesteps=1_000_000)
     model.save("ppo_rgb_4frame_source")
 

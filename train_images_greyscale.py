@@ -1,4 +1,6 @@
+from PIL import Image
 import gym
+from mujoco_py import GlfwContext
 import numpy as np
 import random
 import torch
@@ -11,11 +13,11 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from env.custom_hopper import CustomHopper
 import os
-from mujoco_py import GlfwContext
-
-GlfwContext(offscreen=True)
 
 SEED = 42
+
+#GlfwContext(offscreen=True)  # Create a window to init GLFW.
+
 def v_crop(pil_img, crop_top=0, crop_bottom=0):
     width, height = pil_img.size
     top = crop_top
@@ -28,6 +30,31 @@ def h_crop(pil_img, crop_left=0, crop_right=0):
     right = width - crop_right
     return pil_img.crop((left, 0, right, height))
 
+import cv2
+import numpy as np
+from matplotlib import pyplot as plt
+
+def isolate_and_grayscale(pil_img: Image.Image) -> Image.Image:
+    # Converti PIL → NumPy RGB
+    image_np = np.array(pil_img.convert("RGB"))  # shape: (H, W, 3)
+    
+    # Converti in HSV
+    hsv = cv2.cvtColor(image_np, cv2.COLOR_RGB2HSV)
+
+    # Range per il marrone (può essere adattato)
+    lower_brown = np.array([10, 100, 20])
+    upper_brown = np.array([30, 255, 200])
+    mask = cv2.inRange(hsv, lower_brown, upper_brown)
+
+    # Applica la maschera all'immagine RGB
+    result = cv2.bitwise_and(image_np, image_np, mask=mask)
+
+    # Converti in scala di grigi
+    gray = cv2.cvtColor(result, cv2.COLOR_RGB2GRAY)
+
+    # Converte di nuovo in immagine PIL (mode 'L' = grayscale)
+    return Image.fromarray(gray, mode='L')
+
 # Preprocessing immagini RGB
 preprocess = transforms.Compose([
     transforms.ToPILImage(),
@@ -35,8 +62,7 @@ preprocess = transforms.Compose([
     # transforms.CenterCrop((400,100)),
     transforms.Lambda(lambda img: v_crop(img, crop_top=135, crop_bottom=65)),
     transforms.Lambda(lambda img: h_crop(img, crop_left=195, crop_right=175)),  # Crop left 100 pixels
-
-        # Crop top 100 pixels
+    transforms.Lambda(lambda img: isolate_and_grayscale(img)),
     transforms.ToTensor()  # shape: [C, H, W] ∈ [0,1]
 ])
 # === FrameStack RGB ===
@@ -46,8 +72,9 @@ class RGBStackWrapper(gym.ObservationWrapper):
         self.n_frames = n_frames
         self.frames = deque([], maxlen=n_frames)
         self.observation_space = spaces.Box(
-            low=0.0, high=1.0,
-            shape=(3 * n_frames, 300, 130),
+            low=0.0, 
+            high=1.0,
+            shape=(n_frames, 300, 130),
             dtype=np.float32
         )
 
@@ -55,10 +82,7 @@ class RGBStackWrapper(gym.ObservationWrapper):
         self.env.reset()
         frame = self.env.render(mode='rgb_array')
         processed = preprocess(frame)
-        # salva immagine 
-        pil_image = transforms.ToPILImage()(processed)
-        os.makedirs('frames', exist_ok=True)
-        pil_image.save('frames/frame_reset.png')
+
 
         for _ in range(self.n_frames):
             self.frames.append(processed.clone())
@@ -68,6 +92,10 @@ class RGBStackWrapper(gym.ObservationWrapper):
         _, reward, done, info = self.env.step(action)
         frame = self.env.render(mode='rgb_array')
         processed = preprocess(frame)
+        # salva immagine 
+        pil_image = transforms.ToPILImage()(processed)
+        os.makedirs('frames', exist_ok=True)
+        pil_image.save('frames/frame_reset.png')
         self.frames.append(processed)
         return torch.cat(list(self.frames), dim=0).numpy(), reward, done, info
 
@@ -137,7 +165,7 @@ def main():
         features_extractor_kwargs=dict(features_dim=512)
     )
 
-    model = PPO("CnnPolicy", train_env, device='cuda', policy_kwargs=policy_kwargs, n_steps=128, verbose=1, seed=SEED)
+    model = PPO("CnnPolicy", train_env, policy_kwargs=policy_kwargs, n_steps=256, verbose=1, seed=SEED)
     model.learn(total_timesteps=1_000_000)
     model.save("ppo_rgb_4frame_source")
 
