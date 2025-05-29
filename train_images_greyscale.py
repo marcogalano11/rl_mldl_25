@@ -173,7 +173,7 @@ def main():
 
         model = PPO("CnnPolicy", train_env, device='cuda', policy_kwargs=policy_kwargs, n_steps=1028, clip_range=0.1, learning_rate=1e-3, verbose=1, seed=SEED)
         model.learn(total_timesteps=50_000)
-        model.save("ppo_rgb_4frame_source")
+        model.save("ppo_grey_4frame_source")
     
     elif task=="evaluate":
 
