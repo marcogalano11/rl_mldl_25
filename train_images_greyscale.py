@@ -16,7 +16,7 @@ import os
 
 SEED = 42
 
-#GlfwContext(offscreen=True)  # Create a window to init GLFW.
+GlfwContext(offscreen=True)  # Create a window to init GLFW.
 
 def v_crop(pil_img, crop_top=0, crop_bottom=0):
     width, height = pil_img.size
@@ -35,7 +35,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 def isolate_and_grayscale(pil_img: Image.Image) -> Image.Image:
-    # Converti PIL → NumPy RGB
+    # Converti PIL in NumPy RGB
     image_np = np.array(pil_img.convert("RGB"))  # shape: (H, W, 3)
     
     # Converti in HSV
@@ -49,7 +49,6 @@ def isolate_and_grayscale(pil_img: Image.Image) -> Image.Image:
     # Applica la maschera all'immagine RGB
     result = cv2.bitwise_and(image_np, image_np, mask=mask)
 
-    # Converti in scala di grigi
     gray = cv2.cvtColor(result, cv2.COLOR_RGB2GRAY)
 
     # Converte di nuovo in immagine PIL (mode 'L' = grayscale)
@@ -65,8 +64,10 @@ preprocess = transforms.Compose([
     transforms.Lambda(lambda img: isolate_and_grayscale(img)),
     transforms.ToTensor()  # shape: [C, H, W] ∈ [0,1]
 ])
-# === FrameStack RGB ===
+
+# Stack RGB 
 class RGBStackWrapper(gym.ObservationWrapper):
+
     def __init__(self, env, n_frames=4):
         super().__init__(env)
         self.n_frames = n_frames
@@ -83,6 +84,10 @@ class RGBStackWrapper(gym.ObservationWrapper):
         frame = self.env.render(mode='rgb_array')
         processed = preprocess(frame)
 
+        # salva immagine 
+        pil_image = transforms.ToPILImage()(processed)
+        os.makedirs('frames', exist_ok=True)
+        pil_image.save('frames/frame_reset.png')
 
         for _ in range(self.n_frames):
             self.frames.append(processed.clone())
@@ -92,14 +97,10 @@ class RGBStackWrapper(gym.ObservationWrapper):
         _, reward, done, info = self.env.step(action)
         frame = self.env.render(mode='rgb_array')
         processed = preprocess(frame)
-        # salva immagine 
-        pil_image = transforms.ToPILImage()(processed)
-        os.makedirs('frames', exist_ok=True)
-        pil_image.save('frames/frame_reset.png')
         self.frames.append(processed)
         return torch.cat(list(self.frames), dim=0).numpy(), reward, done, info
 
-# === CNN Personalizzata ===
+# CNN
 class CustomCNN(BaseFeaturesExtractor):
     def __init__(self, observation_space: spaces.Box, features_dim: int = 512):
         super().__init__(observation_space, features_dim)
@@ -123,7 +124,7 @@ class CustomCNN(BaseFeaturesExtractor):
     def forward(self, x):
         return self.linear(self.cnn(x))
 
-# === Plot funzione ===
+# Plot function
 def print_plot_rewards(rewards, title):
     x = np.arange(1, len(rewards)+1)
     plt.plot(x, rewards)
@@ -134,13 +135,17 @@ def print_plot_rewards(rewards, title):
     plt.xticks(x, labels=[str(val) for val in x])
     plt.show()
 
-    with open("output_rgb_source.txt", "w") as file:
+    with open("output_greyscale_source_source.txt", "w") as file:
         for i in range(len(rewards)):
             file.write(f"Cumulative reward of episode {i+1}: {rewards[i]}\n")
         file.write(f"\nAverage return: {np.mean(rewards)}")
 
-# === Main ===
+
 def main():
+
+    task = "evaluate" 
+    #task = "train" 
+
     random.seed(SEED)
     np.random.seed(SEED)
     torch.manual_seed(SEED)
@@ -159,17 +164,22 @@ def main():
     print('Action space:', train_env.action_space)
     print('Dynamics parameters:', train_env.unwrapped.get_parameters())
 
-    # === Training ===
-    policy_kwargs = dict(
-        features_extractor_class=CustomCNN,
-        features_extractor_kwargs=dict(features_dim=512)
-    )
+    if task=="train":
 
-    model = PPO("CnnPolicy", train_env, policy_kwargs=policy_kwargs, n_steps=256, verbose=1, seed=SEED)
-    model.learn(total_timesteps=1_000_000)
-    model.save("ppo_rgb_4frame_source")
+        policy_kwargs = dict(
+            features_extractor_class=CustomCNN,
+            features_extractor_kwargs=dict(features_dim=512)
+        )
 
-    # === Evaluation ===
+        model = PPO("CnnPolicy", train_env, device='cuda', policy_kwargs=policy_kwargs, n_steps=1028, clip_range=0.1, learning_rate=1e-3, verbose=1, seed=SEED)
+        model.learn(total_timesteps=50_000)
+        model.save("ppo_rgb_4frame_source")
+    
+    elif task=="evaluate":
+
+        model = PPO.load("ppo_rgb_4frame_source", env=train_env, device='cuda')
+
+    # Evaluation 
     num_episodes = 50
     rewards = np.zeros(num_episodes)
     i = 0
