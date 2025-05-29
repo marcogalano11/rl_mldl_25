@@ -95,7 +95,7 @@ def main():
             # del model #this only if we have trained a model in this script and we want to delete it
             # model = PPO.load("ppo_hopper")
 
-            evaluate(model, train_env, "PPO")
+            evaluate(model, train_env)
 
     else: #SAC policy, not tuned nor bounded
         model = SAC("MlpPolicy", train_env, verbose=1)
@@ -106,7 +106,7 @@ def main():
         # del model #this only if we have trained a model in this script and we want to delete it
         # model = SAC.load("sac_hopper")
 
-        evaluate(model, train_env, "SAC")
+        evaluate(model, train_env)
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -114,27 +114,18 @@ def parse_args():
     parser.add_argument('--task', choices=['tuning', 'bounding'], default=None)
     return parser.parse_args()
 
-def evaluate(model, test_env, modelName):
+def evaluate(model, test_env):
     obs = test_env.reset()
 
-    cumulative_reward = 0
-    i = 0
-    num_episodes = 50
-    rewards = np.zeros(num_episodes)
-                    
-    while i < num_episodes:
-        action, _states = model.predict(obs)
-        obs, reward, done, info = test_env.step(action)
-        cumulative_reward += reward
-        #test_env.render()
-        if done:
-            rewards[i] = cumulative_reward
-            cumulative_reward = 0
-            obs = test_env.reset()
-            i += 1
+    means = np.zeros(3)
+    stds = np.zeros(3)
 
-    title = f"Simulation on a Source-Source environment with {modelName}"
-    print_plot_rewards(rewards,title)
+    for i in range(3):         
+        mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
+        means[i] = mean_reward
+        stds[i] = std_reward
+    
+    print(f"Average reward: {means.mean()}, Average std: {stds.mean()}")
 
 def evaluate_bounds(parameters, environment="source"):
 

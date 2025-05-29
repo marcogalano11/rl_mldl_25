@@ -103,7 +103,7 @@ def main():
         model.save("randomized_ppo")
         #model = PPO.load("randomized_ppo")
 
-        evaluate(model, test_env, "PPO_randomized")
+        evaluate(model, test_env)
 
 def parse_args():
     parser = argparse.ArgumentParser()
