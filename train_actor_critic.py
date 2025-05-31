@@ -12,25 +12,24 @@ import matplotlib.pyplot as plt
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n-episodes', default=100000, type=int, help='Number of training episodes')
-    parser.add_argument('--print-every', default=20000, type=int, help='Print info every <> episodes')
+    parser.add_argument('--n-episodes', default=100_000, type=int, help='Number of training episodes')
+    parser.add_argument('--print-every', default=2000, type=int, help='Print info every <> episodes')
     parser.add_argument('--device', default='cpu', type=str, help='network device [cpu, cuda]')
 
     return parser.parse_args()
-def save_plot_rewards(reward_list, title="Training Performance", filename="rewards_plot.png"):
-    episodes = np.arange(1, len(reward_list)+1)
-    plt.plot(episodes, reward_list)
-    plt.title(title)
-    plt.xlabel("Episode")
-    plt.ylabel("Reward")
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(filename)
-    plt.close()
 
 
 args = parse_args()
 
+def save_rewards(rewards, method_name):
+    filename = f"rewards_{method_name.lower().replace(' ', '_')}.txt"
+    
+    # Salva i reward episodio per episodio
+    with open(filename, "w") as f:
+        for i, r in enumerate(rewards):
+            f.write(f"{r}\n")
+
+    print(f"Saved rewards to {filename}")
 
 def main():
 
@@ -80,8 +79,8 @@ def main():
 
 
 	torch.save(agent.policy.state_dict(), "actor_critic.mdl")
-	save_plot_rewards(reward_list, title="Actor-Critic Training Performance", filename="actor_critic_rewards.png")
-
+	method_name = "actor_critic"
+	save_rewards(reward_list, method_name)
 	
 
 if __name__ == '__main__':
