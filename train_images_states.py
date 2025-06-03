@@ -55,25 +55,57 @@ class CombinedWrapper(gym.ObservationWrapper):
         super().__init__(env)
         self.n_frames = n_frames
         self.frames = deque([], maxlen=n_frames)
+        self.env = env
+
+        # Initialize running stats for state normalization
+        state_shape = env.observation_space.shape
+        self.state_sum = np.zeros(state_shape)
+        self.state_sumsq = np.zeros(state_shape)
+        self.state_count = 1e-6  # avoid div by zero
+
         self.observation_space = spaces.Dict({
             "image": spaces.Box(low=0.0, high=1.0, shape=(n_frames, 65, 150), dtype=np.float32),
             "state": env.observation_space
         })
 
+    def update_state_stats(self, state):
+        self.state_sum += state
+        self.state_sumsq += np.square(state)
+        self.state_count += 1
+
+    def normalize_state(self, state):
+        mean = self.state_sum / self.state_count
+        var = (self.state_sumsq / self.state_count) - np.square(mean)
+        std = np.sqrt(np.maximum(var, 1e-6))  # ensure no division by zero
+        return (state - mean) / std
+
     def reset(self):
         state = self.env.reset()
+        self.update_state_stats(state)
+        norm_state = self.normalize_state(state)
+
         frame = self.env.render(mode='rgb_array')
         processed = preprocess(frame)
         for _ in range(self.n_frames):
             self.frames.append(processed.clone())
-        return {"image": torch.cat(list(self.frames), dim=0).numpy(), "state": state}
+        return {
+            "image": torch.cat(list(self.frames), dim=0).numpy(),
+            "state": norm_state
+        }
 
     def step(self, action):
         state, reward, done, info = self.env.step(action)
+        self.update_state_stats(state)
+        norm_state = self.normalize_state(state)
+
         frame = self.env.render(mode='rgb_array')
         processed = preprocess(frame)
         self.frames.append(processed)
-        return {"image": torch.cat(list(self.frames), dim=0).numpy(), "state": state}, reward, done, info
+        return {
+            "image": torch.cat(list(self.frames), dim=0).numpy(),
+            "state": norm_state
+        }, reward, done, info
+
 
 class CombinedExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: spaces.Dict, features_dim=512):
