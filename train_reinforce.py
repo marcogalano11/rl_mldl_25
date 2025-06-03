@@ -12,7 +12,7 @@ import numpy as np
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n-episodes', default=200_000, type=int, help='Number of training episodes')
+    parser.add_argument('--n-episodes', default=100_000, type=int, help='Number of training episodes')
     parser.add_argument('--print-every', default=20000, type=int, help='Print info every <> episodes')
     parser.add_argument('--device', default='cpu', type=str, help='network device [cpu, cuda]')
 
@@ -30,7 +30,15 @@ def save_plot_rewards(reward_list, title="REINFORCE Training Performance", filen
 
 
 args = parse_args()
+def save_rewards(rewards, method_name):
+    filename = f"rewards_{method_name.lower().replace(' ', '_')}.txt"
+    
+    # Salva i reward episodio per episodio
+    with open(filename, "w") as f:
+        for i, r in enumerate(rewards):
+            f.write(f"{r}\n")
 
+    print(f"Saved rewards to {filename}")
 
 def main():
 
@@ -75,8 +83,8 @@ def main():
 
 
 	torch.save(agent.policy.state_dict(), "reinforce.mdl")
-	save_plot_rewards(reward_list, title="REINFORCE Training Performance", filename="reinforce_rewards.png")
-	
+	method_name = "reinforce"
+	save_rewards(reward_list, method_name)
 
 if __name__ == '__main__':
 	main()
