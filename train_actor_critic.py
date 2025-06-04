@@ -4,10 +4,14 @@
 import argparse
 import torch
 import gym
-from env.custom_hopper import *
 from agent_actor_critic import Agent, Policy
 import numpy as np
 import matplotlib.pyplot as plt	
+
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from env.custom_hopper import *
 
 
 def parse_args():
