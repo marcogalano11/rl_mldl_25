@@ -46,7 +46,7 @@ preprocess = transforms.Compose([
     transforms.Lambda(lambda img: v_crop(img, crop_top=135, crop_bottom=65)),
     transforms.Lambda(lambda img: h_crop(img, crop_left=195, crop_right=175)),
     transforms.Lambda(lambda img: isolate_and_grayscale(img)),
-    transforms.Resize((65, 150)),  # Resize mantenendo la proporzione
+    transforms.Resize((150, 65)),  # Resize mantenendo la proporzione
     transforms.ToTensor()
 ])
 
@@ -64,7 +64,7 @@ class CombinedWrapper(gym.ObservationWrapper):
         self.state_count = 1e-6  # avoid div by zero
 
         self.observation_space = spaces.Dict({
-            "image": spaces.Box(low=0.0, high=1.0, shape=(n_frames, 65, 150), dtype=np.float32),
+            "image": spaces.Box(low=0.0, high=1.0, shape=(n_frames, 150, 65), dtype=np.float32),
             "state": env.observation_space
         })
 
