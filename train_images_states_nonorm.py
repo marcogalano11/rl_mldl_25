@@ -52,11 +52,13 @@ preprocess = transforms.Compose([
 ])
 
 class CombinedWrapper(gym.ObservationWrapper):
-    def __init__(self, env, n_frames=8):
+    def __init__(self, env, n_frames=8, evaluation=None):
         super().__init__(env)
         self.n_frames = n_frames
         self.frames = deque([], maxlen=n_frames)
         self.env = env
+        self.evaluation = evaluation
+        self.state_shape = env.observation_space.shape
 
         self.observation_space = spaces.Dict({
             "image": spaces.Box(low=0.0, high=1.0, shape=(n_frames, 64, 64), dtype=np.float32),
@@ -65,12 +67,27 @@ class CombinedWrapper(gym.ObservationWrapper):
 
 
     def reset(self):
-        state = self.env.reset()
+        if self.evaluation=="both" or self.evaluation==None:
+            state = self.env.reset()
+            frame = self.env.render(mode='rgb_array')
+            processed = preprocess(frame)
 
-        frame = self.env.render(mode='rgb_array')
-        processed = preprocess(frame)
+
+        elif self.evaluation=="images":
+            frame = self.env.render(mode='rgb_array')
+            processed = preprocess(frame)
+            state = np.zeros(self.state_shape)
+        
+        elif self.evaluation=="states":
+            state = self.env.reset()
+            processed = torch.zeros((1,64, 64))
+
+        else:
+            raise ValueError(f"Unknown evaluation mode: {self.evaluation}")
+
         for _ in range(self.n_frames):
             self.frames.append(processed.clone())
+
         return {
             "image": torch.cat(list(self.frames), dim=0).numpy(),
             "state": state
@@ -79,8 +96,15 @@ class CombinedWrapper(gym.ObservationWrapper):
     def step(self, action):
         state, reward, done, info = self.env.step(action)
 
-        frame = self.env.render(mode='rgb_array')
-        processed = preprocess(frame)
+        if self.evaluation == "states":
+            processed = torch.zeros((1,64, 64))
+        elif self.evaluation == "images" or self.evaluation == "both" or self.evaluation==None:
+            frame = self.env.render(mode='rgb_array')
+            processed = preprocess(frame)
+        
+            if self.evaluation == "images":
+                state = np.zeros(self.state_shape)
+
         self.frames.append(processed)
 
         # save image
@@ -97,7 +121,7 @@ class CombinedWrapper(gym.ObservationWrapper):
 
 
 class CombinedExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space: spaces.Dict, features_dim=512):
+    def __init__(self, observation_space: spaces.Dict, features_dim=64):
         super().__init__(observation_space, features_dim)
         self.cnn = torch.nn.Sequential(
             torch.nn.Conv2d(8, 32, kernel_size=8, stride=4), #se cambio n_frames da passare cambia il primo valore qui 
@@ -119,6 +143,7 @@ class CombinedExtractor(BaseFeaturesExtractor):
             torch.nn.ReLU())
         
         state_dim = observation_space["state"].shape[0]
+
         self.linear = torch.nn.Sequential(
             torch.nn.Linear(64 + state_dim, features_dim),
             torch.nn.ReLU()
@@ -140,7 +165,7 @@ def print_plot_rewards(rewards, title):
     plt.show()
 
 def main():
-    task = "evaluate"  # "train" or "evaluate"
+    task = "train"  # "train" or "evaluate"
     random.seed(SEED)
     np.random.seed(SEED)
     torch.manual_seed(SEED)
@@ -151,7 +176,7 @@ def main():
     if task == "train":
         policy_kwargs = dict(
             features_extractor_class=CombinedExtractor,
-            features_extractor_kwargs=dict(features_dim=512)
+            features_extractor_kwargs=dict(features_dim=64)
         )
 
         model = PPO("MultiInputPolicy", train_env, device='cuda', policy_kwargs=policy_kwargs, n_steps=1024, clip_range=0.1, verbose=1)
