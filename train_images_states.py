@@ -18,6 +18,7 @@ import cv2
 
 import sys
 import os
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from env.custom_hopper import CustomHopper
@@ -48,15 +49,15 @@ def isolate_and_grayscale(pil_img: Image.Image) -> Image.Image:
 
 preprocess = transforms.Compose([
     transforms.ToPILImage(),
-    transforms.Lambda(lambda img: v_crop(img, crop_top=90, crop_bottom=40)), # oppure 135, 65
-    transforms.Lambda(lambda img: h_crop(img, crop_left=160, crop_right=160)), # oppure 195, 175
+    transforms.Lambda(lambda img: v_crop(img, crop_top=125, crop_bottom=55)), # oppure 135, 65
+    transforms.Lambda(lambda img: h_crop(img, crop_left=90, crop_right=90)), # oppure 195, 175
     transforms.Lambda(lambda img: isolate_and_grayscale(img)),
-    transforms.Resize((128, 128)),  # oppure 150, 65
+    transforms.Resize((64,64)),  # oppure 150, 65
     transforms.ToTensor()
 ])
 
 class CombinedWrapper(gym.ObservationWrapper):
-    def __init__(self, env, n_frames=4):
+    def __init__(self, env, n_frames=8):
         super().__init__(env)
         self.n_frames = n_frames
         self.frames = deque([], maxlen=n_frames)
@@ -69,7 +70,7 @@ class CombinedWrapper(gym.ObservationWrapper):
         self.state_count = 0  # avoid div by zero
 
         self.observation_space = spaces.Dict({
-            "image": spaces.Box(low=0.0, high=1.0, shape=(n_frames, 128, 128), dtype=np.float32),
+            "image": spaces.Box(low=0.0, high=1.0, shape=(n_frames, 64, 64), dtype=np.float32),
             "state": env.observation_space
         })
 
@@ -124,12 +125,13 @@ class CombinedExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: spaces.Dict, features_dim=512):
         super().__init__(observation_space, features_dim)
         self.cnn = torch.nn.Sequential(
-            torch.nn.Conv2d(4, 32, kernel_size=8, stride=4),
+            torch.nn.Conv2d(8, 32, kernel_size=8, stride=4), #se cambio n_frames da passare cambia il primo valore qui 
             torch.nn.ReLU(),
             torch.nn.Conv2d(32, 64, kernel_size=4, stride=2),
             torch.nn.ReLU(),
-            torch.nn.Conv2d(64, 64, kernel_size=3, stride=1),
+            torch.nn.Conv2d(64, 128, kernel_size=3, stride=1),
             torch.nn.ReLU(),
+            torch.nn.AvgPool2d(kernel_size=2, stride=2),
             torch.nn.Flatten()
         )
 
@@ -137,20 +139,21 @@ class CombinedExtractor(BaseFeaturesExtractor):
             sample = torch.as_tensor(observation_space["image"].sample()[None]).float()
             n_flatten = self.cnn(sample).shape[1]
 
-        self.mlp = torch.nn.Sequential(
-            torch.nn.Linear(observation_space["state"].shape[0], 64),
-            torch.nn.ReLU()
-        )
-
+        self.image_proj = torch.nn.Sequential(
+            torch.nn.Linear(n_flatten, 64),
+            torch.nn.ReLU())
+        
+        state_dim = observation_space["state"].shape[0]
         self.linear = torch.nn.Sequential(
-            torch.nn.Linear(n_flatten + observation_space["state"].shape[0], features_dim),
+            torch.nn.Linear(64 + state_dim, features_dim),
             torch.nn.ReLU()
         )
 
     def forward(self, obs):
         image_feat = self.cnn(obs["image"])
+        image_feat_rid = self.image_proj(image_feat)
         state_feat = obs["state"]
-        return self.linear(torch.cat([image_feat, state_feat], dim=1))
+        return self.linear(torch.cat([image_feat_rid, state_feat], dim=1))
 
 def print_plot_rewards(rewards, title):
     x = np.arange(1, len(rewards)+1)
@@ -162,7 +165,7 @@ def print_plot_rewards(rewards, title):
     plt.show()
 
 def main():
-    task = "train"  # or "evaluate"
+    task = "train"  # "train" or "evaluate"
     random.seed(SEED)
     np.random.seed(SEED)
     torch.manual_seed(SEED)
