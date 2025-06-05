@@ -11,6 +11,15 @@ from torch.utils.data import Dataset, DataLoader
 from env.custom_hopper import CustomHopper
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3 import PPO
+from mujoco_py import GlfwContext
+import random
+
+GlfwContext(offscreen=True)
+
+SEED = 42
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
 
 def v_crop(pil_img, crop_top=0, crop_bottom=0):
     width, height = pil_img.size
@@ -130,6 +139,7 @@ class ImageOnlyExtractor(nn.Module):
 
 def generate_teacher_dataset(teacher_model, env_state, env_image, output_path="teacher_dataset.npz", num_episodes=50):
     import os
+    import numpy as np
 
     obs_image_list = []
     action_list = []
@@ -138,23 +148,37 @@ def generate_teacher_dataset(teacher_model, env_state, env_image, output_path="t
         obs_state = env_state.reset()
         obs_image = env_image.reset()
 
-        done = False
-        while not done:
-            action, _ = teacher_model.predict(obs_state, deterministic=True)
+        done_state = False
+        done_image = False
 
-            obs_state, _, done, _ = env_state.step(action)
-            obs_image, _, _, _ = env_image.step(action)
+        while not (done_state or done_image):
+            action, _ = teacher_model.predict(obs_state, deterministic=True)
 
             obs_image_list.append(obs_image)
             action_list.append(action)
 
+            try:
+                obs_state, _, done_state, _ = env_state.step(action)
+            except RuntimeError:
+                print("[!] env_state requires reset")
+                break
+
+            try:
+                obs_image, _, done_image, _ = env_image.step(action)
+            except RuntimeError:
+                print("[!] env_image requires reset")
+                break
+
     obs_image_array = np.stack(obs_image_list)
     action_array = np.stack(action_list)
 
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    dir_path = os.path.dirname(output_path)
+    if dir_path:
+        os.makedirs(dir_path, exist_ok=True)
+
     np.savez_compressed(output_path, images=obs_image_array, actions=action_array)
     print(f"[✓] Dataset saved: {output_path}")
-
+    
 class TeacherDataset(Dataset):
     def __init__(self, path):
         data = np.load(path)
@@ -264,3 +288,5 @@ def main():
     student_model.eval()
     evaluate_policy(student_model, test_env_image, is_torch_model=True, device='cuda')
 
+if __name__ == "__main__":
+    main()
