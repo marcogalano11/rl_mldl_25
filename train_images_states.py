@@ -1,5 +1,6 @@
 # Combined visual + state vector PPO training and evaluation
 
+import os
 from PIL import Image
 import gym
 from mujoco_py import GlfwContext
@@ -15,11 +16,6 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.evaluation import evaluate_policy
 import cv2
-
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 from env.custom_hopper import CustomHopper
 
 
@@ -48,10 +44,10 @@ def isolate_and_grayscale(pil_img: Image.Image) -> Image.Image:
 
 preprocess = transforms.Compose([
     transforms.ToPILImage(),
-    transforms.Lambda(lambda img: v_crop(img, crop_top=90, crop_bottom=40)), # oppure 135, 65
-    transforms.Lambda(lambda img: h_crop(img, crop_left=160, crop_right=160)), # oppure 195, 175
+    transforms.Lambda(lambda img: v_crop(img, crop_top=100, crop_bottom=40)), # oppure 135, 65
+    transforms.Lambda(lambda img: h_crop(img, crop_left=100, crop_right=100)), # oppure 195, 175
     transforms.Lambda(lambda img: isolate_and_grayscale(img)),
-    transforms.Resize((128, 128)),  # oppure 150, 65
+    transforms.Resize((84, 84)),  # oppure 150, 65
     transforms.ToTensor()
 ])
 
@@ -66,10 +62,10 @@ class CombinedWrapper(gym.ObservationWrapper):
         state_shape = env.observation_space.shape
         self.state_sum = np.zeros(state_shape)
         self.state_sumsq = np.zeros(state_shape)
-        self.state_count = 0  # avoid div by zero
+        self.state_count = 1e-6  # avoid div by zero
 
         self.observation_space = spaces.Dict({
-            "image": spaces.Box(low=0.0, high=1.0, shape=(n_frames, 128, 128), dtype=np.float32),
+            "image": spaces.Box(low=0.0, high=1.0, shape=(n_frames, 84, 84), dtype=np.float32),
             "state": env.observation_space
         })
 
@@ -108,10 +104,10 @@ class CombinedWrapper(gym.ObservationWrapper):
         self.frames.append(processed)
 
         # save image
-        """processed_img = transforms.ToPILImage()(processed)
+        processed_img = transforms.ToPILImage()(processed)
         os.makedirs("frames", exist_ok=True)
         frame_path = os.path.join("frames", f"frame_gray.png")
-        processed_img.save(frame_path)"""
+        processed_img.save(frame_path)
         
 
         return {
