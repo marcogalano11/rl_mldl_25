@@ -8,7 +8,7 @@ from PIL import Image
 from torchvision import transforms
 import cv2
 from torch.utils.data import Dataset, DataLoader
-from env.custom_hopper import CustomHopper
+from env.custom_hopper import *
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3 import PPO
 from mujoco_py import GlfwContext
