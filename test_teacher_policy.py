@@ -2,6 +2,7 @@ import gym
 import argparse
 from stable_baselines3 import PPO
 from stable_baselines3.common.evaluation import evaluate_policy
+from env.custom_hopper import *
 
 def main(domain):
    
