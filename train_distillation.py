@@ -11,6 +11,15 @@ from torch.utils.data import Dataset, DataLoader
 from env.custom_hopper import CustomHopper
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3 import PPO
+from mujoco_py import GlfwContext
+import random
+
+GlfwContext(offscreen=True)
+
+SEED = 42
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
 
 def v_crop(pil_img, crop_top=0, crop_bottom=0):
     width, height = pil_img.size
