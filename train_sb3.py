@@ -15,8 +15,12 @@ import matplotlib.pyplot as plt
 import random
 import torch
 import argparse
+import os
 
 SEED = 42
+
+folder = "ppo/outputs"
+os.makedirs(folder, exist_ok=True)
 
 def main():
 
@@ -74,7 +78,7 @@ def main():
 
                 mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
 
-                with open("tuning_results.txt", "a") as tuning_results:
+                with open(f"{folder}/tuning_results.txt", "a") as tuning_results:
                     tuning_results.write(f"{config_name}; avg: {mean_reward}, std: {std_reward}\n")
 
         elif task=="bounding":
@@ -92,8 +96,6 @@ def main():
             model.learn(total_timesteps=1e6)
 
             model.save("ppo_hopper")
-            # del model #this only if we have trained a model in this script and we want to delete it
-            # model = PPO.load("ppo_hopper")
 
             evaluate(model, train_env)
 
@@ -103,8 +105,6 @@ def main():
         model.learn(total_timesteps=500_000, log_interval=4)
 
         model.save("sac_hopper")
-        # del model #this only if we have trained a model in this script and we want to delete it
-        # model = SAC.load("sac_hopper")
 
         evaluate(model, train_env)
 
@@ -115,17 +115,10 @@ def parse_args():
     return parser.parse_args()
 
 def evaluate(model, test_env):
-    obs = test_env.reset()
-
-    means = np.zeros(3)
-    stds = np.zeros(3)
-
-    for i in range(3):         
-        mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
-        means[i] = mean_reward
-        stds[i] = std_reward
     
-    print(f"Average reward: {means.mean()}, Average std: {stds.mean()}")
+    obs = test_env.reset()
+    mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
+    print(f"Average reward: {mean_reward}, Average std: {std_reward}")
 
 def evaluate_bounds(parameters, environment="source"):
 
@@ -138,7 +131,6 @@ def evaluate_bounds(parameters, environment="source"):
                 learning_rate=parameters["lr"], clip_range=parameters["clip_range"], seed=SEED)
     model.learn(total_timesteps=1e6)
     model.save(f"tuned_ppo_{environment}")
-    #model = PPO.load(f"tuned_ppo_{environment}")
 
     means = np.zeros(3)
     stds = np.zeros(3)
@@ -153,8 +145,10 @@ def evaluate_bounds(parameters, environment="source"):
         mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
         means[i] = mean_reward
         stds[i] = std_reward
+
+    filepath = f"{folder}/bounds.txt"
             
-    with open("bounds.txt", "a") as bounds:
+    with open(filepath, "a") as bounds:
         bounds.write(f"Bound {environment}-target: Average mean: {means.mean()}, Average std: {stds.mean()}\n")
 
 def print_plot_rewards(rewards,title):
