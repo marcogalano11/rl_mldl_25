@@ -16,8 +16,12 @@ import random
 import torch
 import argparse
 from train_sb3 import evaluate
+import os
 
 SEED = 42
+
+folder = "ppo/outputs"
+os.makedirs(folder, exist_ok=True)
 
 def main():
 
@@ -79,7 +83,7 @@ def main():
 
             mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
 
-            with open("tuning_results_randomization_onsource.txt", "a") as tuning_results:
+            with open(f"{folder}/tuning_results_randomization.txt", "a") as tuning_results:
                 tuning_results.write(f"{config_name}; avg: {mean_reward}, std: {std_reward}\n")
 
     else:
@@ -101,7 +105,6 @@ def main():
                     learning_rate=params["lr"], clip_range=params["clip_range"], seed=SEED)
         model.learn(total_timesteps=1e6)
         model.save("randomized_ppo")
-        #model = PPO.load("randomized_ppo")
 
         evaluate(model, test_env)
 
