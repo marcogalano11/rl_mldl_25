@@ -55,7 +55,7 @@ class Policy(torch.nn.Module):
 
 
 class Agent(object):
-    def __init__(self, policy, device='cpu'):
+    def __init__(self, policy, device='cpu', baseline=0):
         self.train_device = device
         self.policy = policy.to(self.train_device)
         self.optimizer = torch.optim.Adam(policy.parameters(), lr=1e-3)
@@ -64,6 +64,7 @@ class Agent(object):
         self.next_states = []
         self.action_log_probs = []
         self.rewards = []
+        self.baseline = baseline
 
 
     def update_policy(self):
@@ -81,8 +82,7 @@ class Agent(object):
 
         #using the predefined discounted_rewards function to compute discounted rewards from the current rewards and the defined gamma value
         discounted_returns = discount_rewards(rewards, self.gamma)
-        b = 0
-        returns = discounted_returns - b
+        returns = discounted_returns - self.baseline
 
         #compute the policy loss
         policy_loss = -torch.sum(action_log_probs * returns)
@@ -107,10 +107,10 @@ class Agent(object):
         # Compute Log probability of the action [ log(p(a[0] AND a[1] AND a[2])) = log(p(a[0])*p(a[1])*p(a[2])) = log(p(a[0])) + log(p(a[1])) + log(p(a[2])) ]
         action_log_prob = normal_dist.log_prob(action).sum()
 
-        return action, action_log_prob
+        return action, action_log_prob, None
 
 
-    def store_outcome(self, state, next_state, action_log_prob, reward):
+    def store_outcome(self, state, next_state, action_log_prob, reward, value=None):
         self.states.append(torch.from_numpy(state).float())
         self.action_log_probs.append(action_log_prob)
         self.rewards.append(torch.Tensor([reward]))

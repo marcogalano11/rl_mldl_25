@@ -9,6 +9,7 @@ import gym
 from env.custom_hopper import *
 import agent_reinforce as RE
 import agent_actor_critic as AC
+import os
 
 
 def parse_args():
@@ -23,12 +24,16 @@ def parse_args():
 args = parse_args()
 
 def save_rewards(rewards, method_name):
-    filename = f"rewards_{method_name}.txt"
-    with open(filename, "w") as f:
+    folder = f"outputs_{method_name}"
+    filepath = f"{folder}/rewards_{method_name}.txt"
+
+    os.makedirs(folder, exist_ok=True)
+
+    with open(filepath, "w") as f:
         for r in rewards:
             f.write(f"{r}\n")
 
-    print(f"Saved rewards to {filename}")
+    print(f"Saved rewards to {filepath}")
 
 def main():
 
@@ -83,7 +88,7 @@ def main():
 
 			state, reward, done, info = env.step(action.detach().cpu().numpy())
 
-			agent.store_outcome(previous_state, state, action_probabilities, reward, done, value)
+			agent.store_outcome(previous_state, state, action_probabilities, reward, value)
 
 			train_reward += reward
 		

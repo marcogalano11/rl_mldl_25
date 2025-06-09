@@ -85,7 +85,6 @@ class Agent(object):
         self.next_states = []
         self.action_log_probs = []
         self.rewards = []
-        self.done = []
         self.values = []
 
 
@@ -94,10 +93,9 @@ class Agent(object):
         states = torch.stack(self.states, dim=0).to(self.train_device).squeeze(-1)
         next_states = torch.stack(self.next_states, dim=0).to(self.train_device).squeeze(-1)
         rewards = torch.stack(self.rewards, dim=0).to(self.train_device).squeeze(-1)
-        done = torch.Tensor(self.done).to(self.train_device)
         values = torch.stack(self.values, dim=0).to(self.train_device).squeeze(-1)
 
-        self.states, self.next_states, self.action_log_probs, self.rewards, self.done , self.values = [], [], [], [], [], []
+        self.states, self.next_states, self.action_log_probs, self.rewards, self.values = [], [], [], [], []
 
         #
         # TASK 2:
@@ -143,11 +141,10 @@ class Agent(object):
             return action, action_log_prob, value
 
 
-    def store_outcome(self, state, next_state, action_log_prob, reward, done, value):
+    def store_outcome(self, state, next_state, action_log_prob, reward, value):
         self.states.append(torch.from_numpy(state).float())
         self.next_states.append(torch.from_numpy(next_state).float())
         self.action_log_probs.append(action_log_prob)
         self.rewards.append(torch.Tensor([reward]))
-        self.done.append(done)
         self.values.append(value)
 

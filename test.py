@@ -83,7 +83,7 @@ def main():
 		
 		rewards.append(test_reward)
 
-		print(f"Episode: {episode} | Return: {test_reward}")
+		print(f"Episode: {episode + 1} | Return: {test_reward}")
 	
 	plot_rewards(rewards, args.agent)
 	
