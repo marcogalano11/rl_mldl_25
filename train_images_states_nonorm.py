@@ -121,17 +121,17 @@ class CombinedExtractor(BaseFeaturesExtractor):
         state_dim = observation_space["state"].shape[0]
 
         self.linear = torch.nn.Sequential(
-            torch.nn.Linear(n_flatten, features_dim),
+            torch.nn.Linear(n_flatten + state_dim, 523),
             torch.nn.ReLU()
         )
 
     def forward(self, obs):
         image_feat = self.cnn(obs["image"])
-        image_lin = self.linear(image_feat)
+       
         #image_feat_rid = self.image_proj(image_feat)
         state_feat = obs["state"]
-        #return self.linear(torch.cat([image_feat_rid, state_feat], dim=1))
-        return torch.cat([image_lin, state_feat], dim=1)
+        return self.linear(torch.cat([image_feat, state_feat], dim=1))
+        #return torch.cat([image_lin, state_feat], dim=1)
 
 def print_plot_rewards(rewards, title):
     x = np.arange(1, len(rewards)+1)
@@ -149,12 +149,12 @@ def main():
     torch.manual_seed(SEED)
 
     train_env = CombinedWrapper(Monitor(CustomHopper(domain='source')))
-    test_env = CombinedWrapper(Monitor(CustomHopper(domain='target')))
+    test_env = CombinedWrapper(Monitor(CustomHopper(domain='source')))
 
     if task == "train":
         policy_kwargs = dict(
             features_extractor_class=CombinedExtractor,
-            features_extractor_kwargs=dict(features_dim=512)
+            features_extractor_kwargs=dict(features_dim=523) # oppure 512
         )
 
         model = PPO("MultiInputPolicy", train_env, device='cpu', policy_kwargs=policy_kwargs, n_steps=1024, clip_range=0.1, verbose=1)
