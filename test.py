@@ -5,24 +5,33 @@ import torch
 import gym
 
 from env.custom_hopper import *
-from agent import Agent, Policy
+import agent_reinforce as RE
+import agent_actor_critic as AC
+
+import matplotlib.pyplot as plt
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', default=None, type=str, help='Model path')
+    parser.add_argument('--agent', default='reinforce', type=str, help='model name [reinforce, reinforce_baseline, actor_critic]')
     parser.add_argument('--device', default='cpu', type=str, help='network device [cpu, cuda]')
     parser.add_argument('--render', default=False, action='store_true', help='Render the simulator')
-    parser.add_argument('--episodes', default=10, type=int, help='Number of test episodes')
+    parser.add_argument('--episodes', default=50, type=int, help='Number of test episodes')
 
     return parser.parse_args()
 
 args = parse_args()
 
+def plot_rewards(rewards, method_name):
+	episodes = list(range(1, len(rewards) + 1))
+	plt.plot(episodes, rewards)
+	plt.xlabel('Episodes')
+	plt.ylabel('Rewards')
+	plt.title(f"Rewards over {len(episodes)} episodes of {method_name}")
+	plt.show()
 
 def main():
 
 	env = gym.make('CustomHopper-source-v0')
-	# env = gym.make('CustomHopper-target-v0')
 
 	print('Action space:', env.action_space)
 	print('State space:', env.observation_space)
@@ -31,10 +40,30 @@ def main():
 	observation_space_dim = env.observation_space.shape[-1]
 	action_space_dim = env.action_space.shape[-1]
 
-	policy = Policy(observation_space_dim, action_space_dim)
-	policy.load_state_dict(torch.load(args.model), strict=True)
+	if args.agent == "reinforce":
 
-	agent = Agent(policy, device=args.device)
+		policy = RE.Policy(observation_space_dim, action_space_dim)
+		policy.load_state_dict(torch.load(f"{args.agent}.mdl"), strict=True)
+		agent = RE.Agent(policy, device=args.device)
+
+	elif args.agent == "reinforce_baseline":
+
+		baseline = 20
+		policy = RE.Policy(observation_space_dim, action_space_dim)
+		policy.load_state_dict(torch.load(f"{args.agent}.mdl"), strict=True)
+		agent = RE.Agent(policy, device=args.device, baseline=baseline)
+
+	elif args.agent == "actor_critic":
+	
+		policy = AC.Policy(observation_space_dim, action_space_dim)
+		policy.load_state_dict(f"{args.agent}.mdl", strict=True)
+		agent = AC.Agent(policy, device=args.device)
+
+	else: 
+
+		raise ValueError(f"Unsupported or wrong agent type: {args.agent}")
+	
+	rewards = []
 
 	for episode in range(args.episodes):
 		done = False
@@ -51,8 +80,12 @@ def main():
 				env.render()
 
 			test_reward += reward
+		
+		rewards.append(test_reward)
 
 		print(f"Episode: {episode} | Return: {test_reward}")
+	
+	plot_rewards(rewards, args.agent)
 	
 
 if __name__ == '__main__':

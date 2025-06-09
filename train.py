@@ -7,24 +7,32 @@ import torch
 import gym
 
 from env.custom_hopper import *
-from agent import Agent, Policy
+import agent_reinforce as RE
+import agent_actor_critic as AC
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n-episodes', default=100000, type=int, help='Number of training episodes')
-    parser.add_argument('--print-every', default=20000, type=int, help='Print info every <> episodes')
+    parser.add_argument('--n-episodes', default=100_000, type=int, help='Number of training episodes')
+    parser.add_argument('--print-every', default=20_000, type=int, help='Print info every <> episodes')
+    parser.add_argument('--agent', default="reinforce", type=str, help='agent type [reinforce, reinforce_baseline, actor_critic]')
     parser.add_argument('--device', default='cpu', type=str, help='network device [cpu, cuda]')
-
+	
     return parser.parse_args()
 
 args = parse_args()
 
+def save_rewards(rewards, method_name):
+    filename = f"rewards_{method_name}.txt"
+    with open(filename, "w") as f:
+        for r in rewards:
+            f.write(f"{r}\n")
+
+    print(f"Saved rewards to {filename}")
 
 def main():
 
 	env = gym.make('CustomHopper-source-v0')
-	# env = gym.make('CustomHopper-target-v0')
 
 	print('Action space:', env.action_space)
 	print('State space:', env.observation_space)
@@ -37,12 +45,31 @@ def main():
 	observation_space_dim = env.observation_space.shape[-1]
 	action_space_dim = env.action_space.shape[-1]
 
-	policy = Policy(observation_space_dim, action_space_dim)
-	agent = Agent(policy, device=args.device)
+	if args.agent == "reinforce":
+
+		policy = RE.Policy(observation_space_dim, action_space_dim)
+		agent = RE.Agent(policy, device=args.device)
+
+	elif args.agent == "reinforce_baseline":
+
+		baseline = 20
+		policy = RE.Policy(observation_space_dim, action_space_dim)
+		agent = RE.Agent(policy, device=args.device, baseline=baseline)
+
+	elif args.agent == "actor_critic":
+	
+		policy = AC.Policy(observation_space_dim, action_space_dim)
+		agent = AC.Agent(policy, device=args.device)
+
+	else: 
+
+		raise ValueError(f"Unsupported or wrong agent type: {args.agent}")
 
     #
     # TASK 2 and 3: interleave data collection to policy updates
     #
+
+	rewards = []
 
 	for episode in range(args.n_episodes):
 		done = False
@@ -60,14 +87,18 @@ def main():
 
 			train_reward += reward
 		
-		agent.update_policy(reinforce = False)
+		agent.update_policy()
 
 		if (episode+1)%args.print_every == 0:
 			print('Training episode:', episode)
-			print('Episode return:', train_reward)
+			print('Episode return: ', train_reward)
+		
+		rewards.append(train_reward)
 
 
-	torch.save(agent.policy.state_dict(), "model.mdl")
+	torch.save(agent.policy.state_dict(), f"{args.agent}.mdl")
+
+	save_rewards(rewards, args.agent)
 
 	
 
