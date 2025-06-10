@@ -1,4 +1,4 @@
-# Combined visual + state vector PPO training and evaluation
+# Evaluation only images
 
 from PIL import Image
 import gym
@@ -106,7 +106,7 @@ class ImageOnlyExtractor(BaseFeaturesExtractor):
         )
 
     def forward(self, obs):
-        image_feat = self.cnn(obs["image"])
+        image_feat = self.cnn(obs)
         return self.linear(image_feat)
         #return torch.cat([image_lin, state_feat], dim=1)
 
@@ -138,13 +138,15 @@ def main():
 
         checkpoint_callback = CheckpointCallback(
         save_freq=100_000,  # salva ogni 100k timesteps
-        save_path="./checkpoints",
+        save_path="./img_checkpoints",
         name_prefix="ppo_hopper")
+        # se voglio usare un checkpoint esistente:
+        # model = PPO.load("checkpoints/ppo_hopper_200000_steps", env=train_env, device='cpu')
         model.learn(total_timesteps=1_000_000, callback=checkpoint_callback)
-        model.save("ppo_combined_nonorm")
+        model.save("ppo_img_nonorm")
 
     elif task == "evaluate":
-        model = PPO.load("rl_mldl_25/ppo_combined_nonorm", env=train_env, device='cpu')
+        model = PPO.load("rl_mldl_25/ppo_img_nonorm", env=train_env, device='cpu')
 
     """
     mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False, return_episode_rewards=True)
