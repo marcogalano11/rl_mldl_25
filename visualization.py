@@ -22,7 +22,6 @@ def compute_from_folders(folder):
     return mvg_avg, upper, lower
 
 # ACTOR CRITIC
-
 mvg_avg, upper, lower = compute_from_folders("outputs_actor_critic")
 episodes = range(1, len(mvg_avg)+1)
 plt.plot(episodes, mvg_avg, color='blue', linewidth=2, label="ACTOR CRITIC")
@@ -39,7 +38,6 @@ mvg_avg, upper, lower = compute_from_folders("outputs_reinforce_baseline")
 episodes = range(1, len(mvg_avg)+1)
 plt.plot(episodes, mvg_avg, color='green', linewidth=2, label="REINFORCE with baseline")
 plt.fill_between(episodes, lower, upper, color='green', alpha=0.1)
-
 
 plt.legend(loc='upper left', fontsize=15)
 plt.ylabel("Rewards")
