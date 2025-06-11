@@ -13,6 +13,14 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3 import PPO
 from mujoco_py import GlfwContext
 import random
+from torch.utils.data import Dataset
+import glob
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from stable_baselines3.common.policies import ActorCriticPolicy
+from stable_baselines3 import PPO
+from gym import spaces
+import os
+import numpy as np
 
 GlfwContext(offscreen=True)
 
@@ -48,40 +56,6 @@ preprocess = transforms.Compose([
     transforms.ToTensor()
 ])
 
-class StateOnlyWrapper(gym.ObservationWrapper):
-    def __init__(self, env):
-        super().__init__(env)
-        self.env = env
-
-        # Stats per normalizzazione
-        state_shape = env.observation_space.shape
-        self.state_sum = np.zeros(state_shape)
-        self.state_sumsq = np.zeros(state_shape)
-        self.state_count = 0
-
-        self.observation_space = env.observation_space
-
-    def update_state_stats(self, state):
-        self.state_sum += state
-        self.state_sumsq += np.square(state)
-        self.state_count += 1
-
-    def normalize_state(self, state):
-        mean = self.state_sum / max(self.state_count, 1)
-        var = (self.state_sumsq / max(self.state_count, 1)) - np.square(mean)
-        std = np.sqrt(np.maximum(var, 1e-6))
-        return (state - mean) / std
-
-    def reset(self):
-        state = self.env.reset()
-        self.update_state_stats(state)
-        return self.normalize_state(state)
-
-    def step(self, action):
-        state, reward, done, info = self.env.step(action)
-        self.update_state_stats(state)
-        return self.normalize_state(state), reward, done, info
-    
 class ImageOnlyWrapper(gym.ObservationWrapper):
     def __init__(self, env, n_frames=8):
         super().__init__(env)
@@ -127,26 +101,40 @@ class ImageOnlyExtractor(nn.Module):
             dummy = torch.zeros(1, n_frames, 64, 64)
             n_flatten = self.cnn(dummy).shape[1]
 
+        self.output_dim = features_dim
         self.linear = nn.Sequential(
             nn.Linear(n_flatten, features_dim),
             nn.ReLU(),
-            nn.Linear(features_dim, 3)
         )
 
     def forward(self, x):
         features = self.cnn(x)
         return self.linear(features)
 
-def generate_teacher_dataset(teacher_model, env_state, env_image, output_path="teacher_dataset.npz", num_episodes=50):
-    import os
-    import numpy as np
+class SupervisedPolicy(nn.Module):
+    def __init__(self, feature_extractor: ImageOnlyExtractor):
+        super().__init__()
+        self.feature_extractor = feature_extractor
+        self.mlp_head = nn.Sequential(
+            nn.Linear(feature_extractor.output_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 3),
+            nn.Tanh()
+        )
 
-    obs_image_list = []
-    action_list = []
+    def forward(self, x):
+        features = self.feature_extractor(x)
+        return self.mlp_head(features)
+
+def generate_teacher_dataset_to_disk(teacher_model, env_state, env_image, output_dir="dataset_eps", num_episodes=500):
+    os.makedirs(output_dir, exist_ok=True)
 
     for ep in range(num_episodes):
         obs_state = env_state.reset()
         obs_image = env_image.reset()
+
+        images = []
+        actions = []
 
         done_state = False
         done_image = False
@@ -154,8 +142,8 @@ def generate_teacher_dataset(teacher_model, env_state, env_image, output_path="t
         while not (done_state or done_image):
             action, _ = teacher_model.predict(obs_state, deterministic=True)
 
-            obs_image_list.append(obs_image)
-            action_list.append(action)
+            images.append(obs_image.astype(np.float16))
+            actions.append(action.astype(np.float32))
 
             try:
                 obs_state, _, done_state, _ = env_state.step(action)
@@ -169,43 +157,49 @@ def generate_teacher_dataset(teacher_model, env_state, env_image, output_path="t
                 print("[!] env_image requires reset")
                 break
 
-    obs_image_array = np.stack(obs_image_list)
-    action_array = np.stack(action_list)
-
-    dir_path = os.path.dirname(output_path)
-    if dir_path:
-        os.makedirs(dir_path, exist_ok=True)
-
-    np.savez_compressed(output_path, images=obs_image_array, actions=action_array)
-    print(f"[✓] Dataset saved: {output_path}")
+        episode_path = os.path.join(output_dir, f"ep_{ep:04d}.npz")
+        np.savez_compressed(episode_path,
+                            images=np.stack(images),
+                            actions=np.stack(actions))
+        print(f"[✓] Saved episode {ep+1}/{num_episodes} to {episode_path}")
     
-class TeacherDataset(Dataset):
-    def __init__(self, path):
-        data = np.load(path)
-        self.images = torch.tensor(data["images"], dtype=torch.float32)
-        self.actions = torch.tensor(data["actions"], dtype=torch.float32)
+    print("[✓] All episodes saved.")
+
+class TeacherDiskDataset(Dataset):
+    def __init__(self, folder_path):
+        self.file_paths = sorted(glob.glob(os.path.join(folder_path, "*.npz")))
+        self.samples = []
+
+        for path in self.file_paths:
+            data = np.load(path)
+            n = len(data['images'])
+            self.samples.extend([(path, i) for i in range(n)])
 
     def __len__(self):
-        return len(self.images)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        return self.images[idx], self.actions[idx]
+        file_path, i = self.samples[idx]
+        data = np.load(file_path)
+        image = torch.tensor(data['images'][i], dtype=torch.float32)
+        action = torch.tensor(data['actions'][i], dtype=torch.float32)
+        return image, action
     
 
-def train_student(model, dataloader, epochs=10, lr=1e-4, device='cuda'):
-    model.to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+def train_student(policy_model, dataloader, epochs=10, lr=1e-4, device='cuda'):
+    policy_model.to(device)
+    optimizer = torch.optim.Adam(policy_model.parameters(), lr=lr)
     criterion = nn.MSELoss()
 
     for epoch in range(epochs):
-        model.train()
+        policy_model.train()
         total_loss = 0
 
-        for images, actions in dataloader:
+        for i, (images, actions) in enumerate(dataloader):
             images = images.to(device)
             actions = actions.to(device)
 
-            preds = model(images)
+            preds = policy_model(images)
             loss = criterion(preds, actions)
 
             optimizer.zero_grad()
@@ -214,18 +208,22 @@ def train_student(model, dataloader, epochs=10, lr=1e-4, device='cuda'):
 
             total_loss += loss.item()
 
-        avg_loss = total_loss / len(dataloader)
-        print(f"Epoch {epoch+1}/{epochs} - Loss: {avg_loss:.4f}")
+            if i % 100 == 0:
+                print(f"Epoch {epoch+1}, Batch {i}, Loss: {loss.item():.4f}")
 
-def evaluate_policy(model, env, n_episodes=50, is_torch_model=False, device='cpu'):
+        avg_loss = total_loss / len(dataloader)
+        print(f"[✓] Epoch {epoch+1}/{epochs} - Avg Loss: {avg_loss:.4f}")
+
+def evaluate_policy(model, env, n_episodes=50, is_torch_model=False, device='cpu', max_steps_per_episode=500):
     returns = []
 
     for _ in range(n_episodes):
         obs = env.reset()
         done = False
         total_reward = 0
+        step_count = 0
 
-        while not done:
+        while not done and step_count < max_steps_per_episode:
             if is_torch_model:
                 obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0).to(device)
                 with torch.no_grad():
@@ -235,6 +233,9 @@ def evaluate_policy(model, env, n_episodes=50, is_torch_model=False, device='cpu
 
             obs, reward, done, _ = env.step(action)
             total_reward += reward
+            step_count += 1
+
+            
 
         returns.append(total_reward)
 
@@ -243,50 +244,96 @@ def evaluate_policy(model, env, n_episodes=50, is_torch_model=False, device='cpu
     print(f"[✓] Evaluation - Reward: {avg_reward:.2f} ± {std_reward:.2f}")
     return avg_reward
 
-def main():
-    # 1. Teacher
-    train_env_state = StateOnlyWrapper(Monitor(CustomHopper(domain='source')))
-    train_env_image = ImageOnlyWrapper(Monitor(CustomHopper(domain='source')))
+class CNNFeatureExtractor(BaseFeaturesExtractor):
+    def __init__(self, observation_space: spaces.Box, features_dim=64):
+        super().__init__(observation_space, features_dim)
+        self.extractor = ImageOnlyExtractor(n_frames=8, features_dim=features_dim)
 
-    test_env_state = StateOnlyWrapper(Monitor(CustomHopper(domain='target')))
+    def forward(self, observations):
+        return self.extractor(observations)
+
+class CustomCNNPolicy(ActorCriticPolicy):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            *args,
+            features_extractor_class=CNNFeatureExtractor,
+            features_extractor_kwargs=dict(features_dim=64),
+            **kwargs
+        )
+
+def train_student_with_rl(student_model, extractor_path, steps=1_000_000):
+    env = ImageOnlyWrapper(Monitor(CustomHopper(domain='source')))
+
+    print("[✓] Fine-tuning student model via RL...")
+    model = PPO(CustomCNNPolicy, env, verbose=0, device='cuda')
+
+    # Carica i pesi del modello supervisionato nel feature extractor
+    if student_model is not None:
+        model.policy.features_extractor.extractor.load_state_dict(torch.load(extractor_path, map_location='cpu'))
+        print("[✓] Loaded weights from supervised model into RL policy.")
+
+    model.learn(total_timesteps=steps)
+    return model
+    
+def main(generate_dataset):
+    num_episodes = 1000        
+    num_epochs = 20          
+
+    dataset_name = f"teacher_dataset_{num_episodes}eps"
+    extractor_name = f"extractor_{num_episodes}eps_{num_epochs}epochs.pt"
+    rl_model_name = f"student_rl_finetuned_{num_episodes}eps_{num_epochs}epochs"
+
+    # 1. Teacher
+    train_env_state = Monitor(CustomHopper(domain='source'))
+    train_env_image = ImageOnlyWrapper(Monitor(CustomHopper(domain='source')))
     test_env_image = ImageOnlyWrapper(Monitor(CustomHopper(domain='target')))
 
-    teacher_model = PPO.load("ppo/tuned_ppo_source", env=train_env_state)
+    teacher_model = PPO.load("ppo/tuned_ppo", env=train_env_state)
 
     # 2. Dataset
-    print("Generating dataset from teacher on SOURCE domain...")
-    generate_teacher_dataset(
-        teacher_model=teacher_model,
-        env_state=train_env_state,
-        env_image=train_env_image,
-        output_path="teacher_dataset.npz",
-        num_episodes=50
-    )
-    
-    # 3. Student
-    dataset = TeacherDataset("teacher_dataset.npz")
-    dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
-    student_model = ImageOnlyExtractor()
-    train_student(student_model, dataloader, epochs=10)
+    if generate_dataset:
+        print(f"Generating dataset ({num_episodes} episodes)...")
+        generate_teacher_dataset_to_disk(
+            teacher_model=teacher_model,
+            env_state=train_env_state,
+            env_image=train_env_image,
+            output_dir=dataset_name,
+            num_episodes=num_episodes
+        )
+    else:
+        print(f"[!] Skipping dataset generation. Using: {dataset_name}")
 
-    # 4. Save
-    torch.save(student_model.state_dict(), "student_policy.pt")
+    # 3. Student
+    print("[✓] Starting supervised training...")
+    dataset = TeacherDiskDataset(dataset_name)
+    dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
+    extractor = ImageOnlyExtractor()
+    policy_model = SupervisedPolicy(extractor)
+    train_student(policy_model, dataloader, epochs=num_epochs)
+    torch.save(policy_model.feature_extractor.state_dict(), extractor_name)
     print("Student model saved.")
 
+    # 4. RL fine-tuning
+    print("[✓] Fine-tuning with RL...")
+    extractor = ImageOnlyExtractor()
+    extractor.load_state_dict(torch.load(extractor_name, map_location='cpu'))
+    rl_model = train_student_with_rl(student_model=extractor,extractor_path=extractor_name)
+    rl_model.save(rl_model_name)
+    print(f"[✓] RL fine-tuned model saved to {rl_model_name}")
+
     # 5. Evaluation
-    print("\n[Evaluation] Teacher policy on SOURCE domain:")
-    evaluate_policy(teacher_model, train_env_state)
 
     print("\n[Evaluation] Student policy on SOURCE domain:")
-    student_model.eval()
-    evaluate_policy(student_model, train_env_image, is_torch_model=True, device='cuda')
+    evaluate_policy(policy_model, train_env_image, is_torch_model=True, device='cuda')
 
-    print("\n[Evaluation] Teacher policy on TARGET domain:")
-    evaluate_policy(teacher_model, test_env_state)
+    print("\n[Evaluation] Fine_tuned policy on SOURCE domain:")
+    evaluate_policy(rl_model, train_env_image)
 
     print("\n[Evaluation] Student policy on TARGET domain:")
-    student_model.eval()
-    evaluate_policy(student_model, test_env_image, is_torch_model=True, device='cuda')
+    evaluate_policy(policy_model, test_env_image, is_torch_model=True, device='cuda')
+
+    print("\n[Evaluation] Fine_tuned policy on TARGET domain:")
+    evaluate_policy(rl_model, test_env_image)
 
 if __name__ == "__main__":
-    main()
+    main(generate_dataset=False)

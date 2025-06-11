@@ -1,9 +1,12 @@
 import gym
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
+from mujoco_py import GlfwContext
 
 # Import your env and extractor from the module file, e.g.:
 from env.custom_hopper_multimodal import CustomHopperMultimodal, CustomCombinedExtractor
+
+GlfwContext(offscreen=True)
 
 def train():
     
