@@ -265,11 +265,13 @@ def train_student_with_rl(student_model, extractor_path, steps=1_000_000):
     env = ImageOnlyWrapper(Monitor(CustomHopper(domain='source')))
 
     print("[✓] Fine-tuning student model via RL...")
-    model = PPO(CustomCNNPolicy, env, verbose=0, device='cuda')
+    model = model = PPO(CustomCNNPolicy, env, verbose=1, device='cuda')
 
     # Carica i pesi del modello supervisionato nel feature extractor
     if student_model is not None:
         model.policy.features_extractor.extractor.load_state_dict(torch.load(extractor_path, map_location='cpu'))
+        for param in model.policy.features_extractor.extractor.parameters():
+            param.requires_grad = False
         print("[✓] Loaded weights from supervised model into RL policy.")
 
     model.learn(total_timesteps=steps)
@@ -304,33 +306,37 @@ def main(generate_dataset):
         print(f"[!] Skipping dataset generation. Using: {dataset_name}")
 
     # 3. Student
-    print("[✓] Starting supervised training...")
     dataset = TeacherDiskDataset(dataset_name)
     dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
     extractor = ImageOnlyExtractor()
-    policy_model = SupervisedPolicy(extractor)
-    train_student(policy_model, dataloader, epochs=num_epochs)
-    torch.save(policy_model.feature_extractor.state_dict(), extractor_name)
-    print("Student model saved.")
+    if os.path.exists(extractor_name):
+        print(f"[✓] Loading existing extractor from {extractor_name}...")
+        extractor.load_state_dict(torch.load(extractor_name, map_location='cpu'))
+    else:
+        print("[✓] Starting supervised training...")
+        policy_model = SupervisedPolicy(extractor)
+        train_student(policy_model, dataloader, epochs=num_epochs)
+        torch.save(policy_model.feature_extractor.state_dict(), extractor_name)
+        print("Student model saved.")
+
 
     # 4. RL fine-tuning
-    print("[✓] Fine-tuning with RL...")
-    extractor = ImageOnlyExtractor()
-    extractor.load_state_dict(torch.load(extractor_name, map_location='cpu'))
-    rl_model = train_student_with_rl(student_model=extractor,extractor_path=extractor_name)
-    rl_model.save(rl_model_name)
-    print(f"[✓] RL fine-tuned model saved to {rl_model_name}")
+    if os.path.exists(f"{rl_model_name}.zip"):
+        print(f"[✓] RL fine-tuned model found at {rl_model_name}.zip — skipping RL training.")
+        rl_model = PPO.load(rl_model_name, env=train_env_image)
+    else:
+        print("[✓] Fine-tuning with RL...")
+        extractor = ImageOnlyExtractor()
+        extractor.load_state_dict(torch.load(extractor_name, map_location='cpu'))
+        rl_model = train_student_with_rl(student_model=extractor, extractor_path=extractor_name)
+        rl_model.save(rl_model_name)
+        print(f"[✓] RL fine-tuned model saved to {rl_model_name}")
+        
 
     # 5. Evaluation
 
-    print("\n[Evaluation] Student policy on SOURCE domain:")
-    evaluate_policy(policy_model, train_env_image, is_torch_model=True, device='cuda')
-
     print("\n[Evaluation] Fine_tuned policy on SOURCE domain:")
     evaluate_policy(rl_model, train_env_image)
-
-    print("\n[Evaluation] Student policy on TARGET domain:")
-    evaluate_policy(policy_model, test_env_image, is_torch_model=True, device='cuda')
 
     print("\n[Evaluation] Fine_tuned policy on TARGET domain:")
     evaluate_policy(rl_model, test_env_image)
