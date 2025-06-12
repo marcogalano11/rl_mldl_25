@@ -85,6 +85,8 @@ def main():
 
 		print(f"Episode: {episode + 1} | Return: {test_reward}")
 	
+	print(f"Average reward: {np.mean(rewards)}, std: {np.std(rewards)}")
+	
 	plot_rewards(rewards, args.agent)
 	
 
