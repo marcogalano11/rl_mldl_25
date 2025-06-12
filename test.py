@@ -56,7 +56,7 @@ def main():
 	elif args.agent == "actor_critic":
 	
 		policy = AC.Policy(observation_space_dim, action_space_dim)
-		policy.load_state_dict(f"{args.agent}.mdl", strict=True)
+		policy.load_state_dict(torch.load(f"{args.agent}.mdl"), strict=True)
 		agent = AC.Agent(policy, device=args.device)
 
 	else: 
@@ -72,7 +72,7 @@ def main():
 
 		while not done:
 
-			action, _ = agent.get_action(state, evaluation=True)
+			action, _, _ = agent.get_action(state, evaluation=True)
 
 			state, reward, done, info = env.step(action.detach().cpu().numpy())
 

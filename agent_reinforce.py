@@ -100,7 +100,7 @@ class Agent(object):
         normal_dist = self.policy(x)
 
         if evaluation:  # Return mean
-            return normal_dist.mean, None
+            return normal_dist.mean, None, None
 
         action = normal_dist.sample()
 
