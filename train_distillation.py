@@ -137,7 +137,6 @@ class ImageOnlyExtractor(nn.Module):
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.ReLU(),
-            nn.AvgPool2d(kernel_size=2, stride=2),
             nn.Flatten()
         )
 
