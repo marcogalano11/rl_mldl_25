@@ -96,7 +96,7 @@ preprocess = transforms.Compose([
     transforms.Lambda(lambda img: v_crop(img, crop_top=125, crop_bottom=55)),
     transforms.Lambda(lambda img: h_crop(img, crop_left=90, crop_right=90)),
     transforms.Lambda(lambda img: isolate_and_grayscale(img)),
-    transforms.Resize((64,64)),
+    transforms.Resize((84,84)),
     transforms.ToTensor()
 ])
 
@@ -108,7 +108,7 @@ class ImageOnlyWrapper(gym.ObservationWrapper):
         self.env = env
 
         self.observation_space = spaces.Box(
-            low=0.0, high=1.0, shape=(n_frames, 64, 64), dtype=np.float32
+            low=0.0, high=1.0, shape=(n_frames, 84, 84), dtype=np.float32
         )
 
     def reset(self):
@@ -135,14 +135,14 @@ class ImageOnlyExtractor(nn.Module):
             nn.ReLU(),
             nn.Conv2d(32, 64, kernel_size=4, stride=2),
             nn.ReLU(),
-            nn.Conv2d(64, 128, kernel_size=3, stride=1),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.ReLU(),
             nn.AvgPool2d(kernel_size=2, stride=2),
             nn.Flatten()
         )
 
         with torch.no_grad():
-            dummy = torch.zeros(1, n_frames, 64, 64)
+            dummy = torch.zeros(1, n_frames, 84, 84)
             n_flatten = self.cnn(dummy).shape[1]
 
         self.output_dim = features_dim
