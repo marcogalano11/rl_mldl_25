@@ -330,16 +330,16 @@ def main(generate_dataset):
     num_episodes = 1000        
     num_epochs = 20          
 
-    dataset_name = f"teacher_dataset_{num_episodes}eps"
-    student_policy_name = f"student_policy_{num_episodes}eps_{num_epochs}epochs.pt"
-    rl_model_name = f"student_rl_finetuned_{num_episodes}eps_{num_epochs}epochs"
+    dataset_name = f"teacher_dataset_rand_{num_episodes}eps"
+    student_policy_name = f"student_policy_rand_{num_episodes}eps_{num_epochs}epochs.pt"
+    rl_model_name = f"student_rl_finetuned_rand_{num_episodes}eps_{num_epochs}epochs"
 
     # 1. Teacher
     train_env_state = Monitor(CustomHopper(domain='source'))
     train_env_image = ImageOnlyWrapper(Monitor(CustomHopper(domain='source')))
     test_env_image = ImageOnlyWrapper(Monitor(CustomHopper(domain='target')))
 
-    teacher_model = PPO.load("ppo/tuned_ppo", env=train_env_state)
+    teacher_model = PPO.load("ppo/randomized_ppo", env=train_env_state)
 
     # 2. Dataset
     if generate_dataset:
