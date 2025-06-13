@@ -21,6 +21,8 @@ from stable_baselines3 import PPO
 from gym import spaces
 import os
 import numpy as np
+from stable_baselines3.common.callbacks import BaseCallback
+import matplotlib.pyplot as plt
 
 GlfwContext(offscreen=True)
 
@@ -28,6 +30,48 @@ SEED = 42
 random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
+
+
+class RewardLoggerCallback(BaseCallback):
+    def __init__(self, save_path='rl_rewards.npy', verbose=0):
+        super().__init__(verbose)
+        self.rewards = []
+        self.save_path = save_path
+
+    def _on_step(self) -> bool:
+        if len(self.locals.get("infos", [])) > 0:
+            info = self.locals["infos"][0]
+            if 'episode' in info:
+                ep_reward = info['episode']['r']
+                self.rewards.append(ep_reward)
+        return True
+
+    def _on_training_end(self) -> None:
+        np.save(self.save_path, np.array(self.rewards))
+        if self.verbose:
+            print(f"[✓] Saved RL training rewards to {self.save_path}")
+
+def plot_rl_rewards(reward_file: str = "rl_distillation_rewards.npy", save_path: str = None):
+
+    if not os.path.exists(reward_file):
+        print(f"[!] Il file '{reward_file}' non esiste.")
+        return
+
+    rewards = np.load(reward_file)
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(rewards, label='Reward per episode')
+    plt.xlabel("Episodio")
+    plt.ylabel("Reward")
+    plt.title("Reward during RL training")
+    plt.grid(True)
+    plt.legend()
+
+    if save_path:
+        plt.savefig(save_path)
+        print(f"[✓] Plot saved in {save_path}")
+    else:
+        plt.show()
 
 def v_crop(pil_img, crop_top=0, crop_bottom=0):
     width, height = pil_img.size
@@ -261,28 +305,33 @@ class CustomCNNPolicy(ActorCriticPolicy):
             **kwargs
         )
 
-def train_student_with_rl(student_model, extractor_path, steps=1_000_000):
+def train_student_with_rl(student_model, steps=1_000_000):
     env = ImageOnlyWrapper(Monitor(CustomHopper(domain='source')))
 
     print("[✓] Fine-tuning student model via RL...")
-    model = model = PPO(CustomCNNPolicy, env, verbose=1, device='cuda')
+    model = PPO(CustomCNNPolicy, env, verbose=1, device='cuda')
 
-    # Carica i pesi del modello supervisionato nel feature extractor
+    # Copia i pesi dal supervised model nel feature extractor della policy
     if student_model is not None:
-        model.policy.features_extractor.extractor.load_state_dict(torch.load(extractor_path, map_location='cpu'))
+        model.policy.features_extractor.extractor.load_state_dict(
+            student_model.feature_extractor.state_dict()
+        )
         for param in model.policy.features_extractor.extractor.parameters():
             param.requires_grad = False
         print("[✓] Loaded weights from supervised model into RL policy.")
 
-    model.learn(total_timesteps=steps)
+    reward_callback = RewardLoggerCallback(save_path='rl_distillation_rewards.npy', verbose=1)
+
+    model.learn(total_timesteps=steps, callback=reward_callback)
+
     return model
-    
+
 def main(generate_dataset):
     num_episodes = 1000        
     num_epochs = 20          
 
     dataset_name = f"teacher_dataset_{num_episodes}eps"
-    extractor_name = f"extractor_{num_episodes}eps_{num_epochs}epochs.pt"
+    student_policy_name = f"student_policy_{num_episodes}eps_{num_epochs}epochs.pt"
     rl_model_name = f"student_rl_finetuned_{num_episodes}eps_{num_epochs}epochs"
 
     # 1. Teacher
@@ -308,15 +357,16 @@ def main(generate_dataset):
     # 3. Student
     dataset = TeacherDiskDataset(dataset_name)
     dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
-    extractor = ImageOnlyExtractor()
-    if os.path.exists(extractor_name):
-        print(f"[✓] Loading existing extractor from {extractor_name}...")
-        extractor.load_state_dict(torch.load(extractor_name, map_location='cpu'))
+    if os.path.exists(student_policy_name) :
+        print(f"[✓] Loading existing student policy and extractor...")
+        student_policy = torch.load(student_policy_name) 
+        student_policy.eval()
     else:
         print("[✓] Starting supervised training...")
-        policy_model = SupervisedPolicy(extractor)
-        train_student(policy_model, dataloader, epochs=num_epochs)
-        torch.save(policy_model.feature_extractor.state_dict(), extractor_name)
+        extractor = ImageOnlyExtractor()
+        student_policy = SupervisedPolicy(extractor)
+        train_student(student_policy, dataloader, epochs=num_epochs)
+        torch.save(student_policy, student_policy_name)
         print("Student model saved.")
 
 
@@ -325,18 +375,21 @@ def main(generate_dataset):
         print(f"[✓] RL fine-tuned model found at {rl_model_name}.zip — skipping RL training.")
         rl_model = PPO.load(rl_model_name, env=train_env_image)
     else:
-        print("[✓] Fine-tuning with RL...")
-        extractor = ImageOnlyExtractor()
-        extractor.load_state_dict(torch.load(extractor_name, map_location='cpu'))
-        rl_model = train_student_with_rl(student_model=extractor, extractor_path=extractor_name)
+        rl_model = train_student_with_rl(student_model=student_policy)
         rl_model.save(rl_model_name)
         print(f"[✓] RL fine-tuned model saved to {rl_model_name}")
-        
+        plot_rl_rewards(save_path="rl_distillation_plot.png")
 
     # 5. Evaluation
 
+    print("\n[Evaluation] Supervised policy on SOURCE domain:")
+    evaluate_policy(student_policy, train_env_image, is_torch_model=True, device="cuda")
+
     print("\n[Evaluation] Fine_tuned policy on SOURCE domain:")
     evaluate_policy(rl_model, train_env_image)
+
+    print("\n[Evaluation] Supervised policy on TARGET domain:")
+    evaluate_policy(student_policy, test_env_image, is_torch_model=True, device="cuda")
 
     print("\n[Evaluation] Fine_tuned policy on TARGET domain:")
     evaluate_policy(rl_model, test_env_image)
