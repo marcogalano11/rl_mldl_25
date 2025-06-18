@@ -3,4 +3,5 @@ __pycache__
 */__pycache__
 *egg-info
 *.pyc
-*/pycache
+*/pycacherl_mldl_25/distillation/outputs/teacher_dataset_1000eps
+distillation/outputs/teacher_dataset_rand_1000eps
