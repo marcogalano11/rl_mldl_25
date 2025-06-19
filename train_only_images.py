@@ -37,7 +37,7 @@ def main():
             features_extractor_kwargs=dict(features_dim=512) 
         )
 
-        model = PPO("CnnPolicy", train_env, device='cpu', policy_kwargs=policy_kwargs, n_steps=1024, clip_range=0.1, verbose=1)
+        model = PPO("CnnPolicy", train_env, device='cpu', policy_kwargs=policy_kwargs, n_steps=1024, verbose=1)
         model.learn(total_timesteps=1_000_000)
         model.save("images/ppo_img_only")
 
