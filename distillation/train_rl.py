@@ -29,7 +29,7 @@ class RewardLoggerCallback(BaseCallback):
         if self.verbose:
             print(f"[✓] Saved RL training rewards to {self.save_path}")
 
-def train_student_with_rl(student_model, steps=1_000):
+def train_student_with_rl(student_model, steps=1_000_000):
     env = ImageOnlyWrapper(Monitor(CustomHopper(domain='source')))
 
     print("[✓] Fine-tuning student model via RL...")
@@ -44,7 +44,7 @@ def train_student_with_rl(student_model, steps=1_000):
             param.requires_grad = False
         print("[✓] Loaded weights from supervised model into RL policy.")
 
-    reward_callback = RewardLoggerCallback(save_path='rl_distillation_rewards.npy', verbose=1)
+    reward_callback = RewardLoggerCallback(save_path='distillation/outputs/rl_distillation_rewards.npy', verbose=1)
 
     model.learn(total_timesteps=steps, callback=reward_callback)
 

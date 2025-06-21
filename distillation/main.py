@@ -21,7 +21,7 @@ GlfwContext(offscreen=True)
 
 def main(generate_dataset):
     num_episodes = 1000
-    num_epochs = 20  
+    num_epochs = 20
 
     dataset_name = f"distillation/outputs/teacher_dataset_{num_episodes}eps"
     student_policy_name = f"distillation/outputs/student_policy_{num_episodes}eps_{num_epochs}epochs.pt"
