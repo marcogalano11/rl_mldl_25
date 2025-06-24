@@ -12,15 +12,10 @@ The following methods are implemented:
 
 ### Project structure
 The project contains the following folders:
-
-`env`: it contains `custom_hommer.py` about the Hopper environment
-
-`reinforce`: 
-
-`actor_critic`:
-
-`ppo`:
-
-`visual_rl`:
+- `env`: it contains `custom_hommer.py` about the Hopper environment
+- `reinforce`:
+- `actor_critic`:
+- `ppo`:
+- `visual_rl`:
 
 ### Instructions
