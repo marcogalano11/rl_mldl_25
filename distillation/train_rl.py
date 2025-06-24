@@ -2,7 +2,6 @@ from models import CustomCNNPolicy
 from wrapper import ImageOnlyWrapper
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
-import torch
 import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 import sys
@@ -27,12 +26,12 @@ class RewardLoggerCallback(BaseCallback):
     def _on_training_end(self) -> None:
         np.save(self.save_path, np.array(self.rewards))
         if self.verbose:
-            print(f"[✓] Saved RL training rewards to {self.save_path}")
+            print(f"Saved RL training rewards to {self.save_path}")
 
 def train_student_with_rl(student_model, steps=1_000_000):
     env = ImageOnlyWrapper(Monitor(CustomHopper(domain='source')))
 
-    print("[✓] Fine-tuning student model via RL...")
+    print("Fine-tuning student model via RL..")
     model = PPO(CustomCNNPolicy, env, verbose=1, device='cuda')
 
     # Copia i pesi dal supervised model nel feature extractor della policy
@@ -42,7 +41,7 @@ def train_student_with_rl(student_model, steps=1_000_000):
         )
         for param in model.policy.features_extractor.extractor.parameters():
             param.requires_grad = False
-        print("[✓] Loaded weights from supervised model into RL policy.")
+        print("Loaded weights from supervised model into RL policy.")
 
     reward_callback = RewardLoggerCallback(save_path='distillation/outputs/rl_distillation_rewards.npy', verbose=1)
 

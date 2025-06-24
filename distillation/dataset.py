@@ -26,22 +26,22 @@ def generate_teacher_dataset_to_disk(teacher_model, env_state, env_image, output
             try:
                 obs_state, _, done_state, _ = env_state.step(action)
             except RuntimeError:
-                print("[!] env_state requires reset")
+                print("env_state requires reset")
                 break
 
             try:
                 obs_image, _, done_image, _ = env_image.step(action)
             except RuntimeError:
-                print("[!] env_image requires reset")
+                print("env_image requires reset")
                 break
 
         episode_path = os.path.join(output_dir, f"ep_{ep:04d}.npz")
         np.savez_compressed(episode_path,
                             images=np.stack(images),
                             actions=np.stack(actions))
-        print(f"[✓] Saved episode {ep+1}/{num_episodes} to {episode_path}")
+        print(f"Saved episode {ep+1}/{num_episodes} to {episode_path}")
     
-    print("[✓] All episodes saved.")
+    print("All episodes saved.")
 
 class TeacherDiskDataset(Dataset):
     def __init__(self, folder_path):

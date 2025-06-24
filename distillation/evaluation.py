@@ -30,20 +30,20 @@ def evaluate_policy(model, env, n_episodes=50, is_torch_model=False, device='cpu
 
     avg_reward = np.mean(returns)
     std_reward = np.std(returns)
-    print(f"[✓] Evaluation - Reward: {avg_reward:.2f} ± {std_reward:.2f}")
+    print(f"Evaluation - Reward: {avg_reward:.2f} ± {std_reward:.2f}")
     return avg_reward
 
 def plot_rl_rewards(reward_file: str = "distillation/outputs/rl_distillation_rewards.npy", save_path: str = None):
 
     if not os.path.exists(reward_file):
-        print(f"[!] Il file '{reward_file}' non esiste.")
+        print(f"File '{reward_file}' does not exist.")
         return
 
     rewards = np.load(reward_file)
 
     plt.figure(figsize=(10, 5))
     plt.plot(rewards, label='Reward per episode')
-    plt.xlabel("Episodio")
+    plt.xlabel("Episode")
     plt.ylabel("Reward")
     plt.title("Reward during RL training")
     plt.grid(True)
@@ -51,6 +51,6 @@ def plot_rl_rewards(reward_file: str = "distillation/outputs/rl_distillation_rew
 
     if save_path:
         plt.savefig(save_path)
-        print(f"[✓] Plot saved in {save_path}")
+        print(f"Plot saved in {save_path}")
     else:
         plt.show()

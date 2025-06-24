@@ -46,7 +46,7 @@ def main(generate_dataset):
 
     # 2. Dataset
     if generate_dataset:
-        print(f"Generating dataset ({num_episodes} episodes)...")
+        print(f"Generating dataset ({num_episodes} episodes)..")
         generate_teacher_dataset_to_disk(
             teacher_model=teacher_model,
             env_state=env_state,
@@ -55,17 +55,17 @@ def main(generate_dataset):
             num_episodes=num_episodes
         )
     else:
-        print(f"[!] Skipping dataset generation. Using: {dataset_name}")
+        print(f"Skipping dataset generation. Using: {dataset_name}")
 
     # 3. Student
     dataset = TeacherDiskDataset(dataset_name)
     dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
     if os.path.exists(student_policy_name) :
-        print(f"[✓] Loading existing student policy and extractor...")
+        print(f"Loading existing student policy and extractor..")
         student_policy = torch.load(student_policy_name) 
         student_policy.eval()
     else:
-        print("[✓] Starting supervised training...")
+        print("Starting supervised training...")
         extractor = ImageOnlyExtractor()
         student_policy = SupervisedPolicy(extractor)
         train_student(student_policy, dataloader, epochs=num_epochs)
@@ -75,16 +75,15 @@ def main(generate_dataset):
 
     # 4. RL fine-tuning
     if os.path.exists(f"{rl_model_name}.zip"):
-        print(f"[✓] RL fine-tuned model found at {rl_model_name}.zip — skipping RL training.")
+        print(f"RL fine-tuned model found at {rl_model_name}.zip — skipping RL training.")
         rl_model = PPO.load(rl_model_name, env=env_image)
     else:
         rl_model = train_student_with_rl(student_model=student_policy)
         rl_model.save(rl_model_name)
-        print(f"[✓] RL fine-tuned model saved to {rl_model_name}")
+        print(f"RL fine-tuned model saved to {rl_model_name}")
         plot_rl_rewards(save_path="distillation/outputs/rl_distillation_plot.png")
 
     # 5. Evaluation
-
     print("\n[Evaluation] Supervised policy on SOURCE domain:")
     evaluate_policy(student_policy, env_image, is_torch_model=True, device="cuda")
 

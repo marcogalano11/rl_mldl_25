@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 
 def train_student(policy_model, dataloader, epochs=10, lr=1e-4, device='cuda'):
     policy_model.to(device)
@@ -28,4 +27,4 @@ def train_student(policy_model, dataloader, epochs=10, lr=1e-4, device='cuda'):
                 print(f"Epoch {epoch+1}, Batch {i}, Loss: {loss.item():.4f}")
 
         avg_loss = total_loss / len(dataloader)
-        print(f"[✓] Epoch {epoch+1}/{epochs} - Avg Loss: {avg_loss:.4f}")
+        print(f"Epoch {epoch+1}/{epochs} - Avg Loss: {avg_loss:.4f}")
