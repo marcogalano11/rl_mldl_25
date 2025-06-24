@@ -16,10 +16,20 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from env.custom_hopper import CustomHopper
 from mujoco_py import GlfwContext
+import random
+import numpy as np
 
 GlfwContext(offscreen=True)
 
+def set_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
 def main(generate_dataset):
+    set_seed(42)
     num_episodes = 1000
     num_epochs = 20
 
@@ -28,19 +38,19 @@ def main(generate_dataset):
     rl_model_name = f"distillation/outputs/student_rl_finetuned_{num_episodes}eps_{num_epochs}epochs"
 
     # 1. Teacher
-    train_env_state = Monitor(CustomHopper(domain='source'))
-    train_env_image = ImageOnlyWrapper(Monitor(CustomHopper(domain='source')))
-    test_env_image = ImageOnlyWrapper(Monitor(CustomHopper(domain='target')))
-
-    teacher_model = PPO.load("ppo/tuned_ppo", env=train_env_state)
+    env_state = Monitor(CustomHopper(domain='source'))
+    env_image = ImageOnlyWrapper(Monitor(CustomHopper(domain='source')))
+    env_image.seed(42)
+    env_image.action_space.seed(42)
+    teacher_model = PPO.load("ppo/tuned_ppo", env=env_state)
 
     # 2. Dataset
     if generate_dataset:
         print(f"Generating dataset ({num_episodes} episodes)...")
         generate_teacher_dataset_to_disk(
             teacher_model=teacher_model,
-            env_state=train_env_state,
-            env_image=train_env_image,
+            env_state=env_state,
+            env_image=env_image,
             output_dir=dataset_name,
             num_episodes=num_episodes
         )
@@ -66,7 +76,7 @@ def main(generate_dataset):
     # 4. RL fine-tuning
     if os.path.exists(f"{rl_model_name}.zip"):
         print(f"[✓] RL fine-tuned model found at {rl_model_name}.zip — skipping RL training.")
-        rl_model = PPO.load(rl_model_name, env=train_env_image)
+        rl_model = PPO.load(rl_model_name, env=env_image)
     else:
         rl_model = train_student_with_rl(student_model=student_policy)
         rl_model.save(rl_model_name)
@@ -76,16 +86,10 @@ def main(generate_dataset):
     # 5. Evaluation
 
     print("\n[Evaluation] Supervised policy on SOURCE domain:")
-    evaluate_policy(student_policy, train_env_image, is_torch_model=True, device="cuda")
+    evaluate_policy(student_policy, env_image, is_torch_model=True, device="cuda")
 
     print("\n[Evaluation] Fine_tuned policy on SOURCE domain:")
-    evaluate_policy(rl_model, train_env_image)
-
-    print("\n[Evaluation] Supervised policy on TARGET domain:")
-    evaluate_policy(student_policy, test_env_image, is_torch_model=True, device="cuda")
-
-    print("\n[Evaluation] Fine_tuned policy on TARGET domain:")
-    evaluate_policy(rl_model, test_env_image)
+    evaluate_policy(rl_model, env_image)
 
 if __name__ == "__main__":
     main(generate_dataset=False)
