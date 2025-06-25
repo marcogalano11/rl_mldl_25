@@ -4,7 +4,7 @@ import torch
 from collections import deque
 from gym import spaces
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
-from images.image_preprocessing import preprocess
+from images.images_preprocessing import preprocess
 
 # Environment wrapper for images and states input
 class CombinedWrapper(gym.ObservationWrapper):

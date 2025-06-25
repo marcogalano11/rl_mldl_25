@@ -7,7 +7,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.evaluation import evaluate_policy
 from env.custom_hopper import CustomHopper
-from images.image_only_env import ImageOnlyExtractor, ImageOnlyWrapper
+from images.images_only_env import ImageOnlyExtractor, ImageOnlyWrapper
 
 SEED = 42
 GlfwContext(offscreen=True)
