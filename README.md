@@ -34,4 +34,4 @@ To train or evaluate the agent in the visual-only approach, the file `train_only
 
 To train or evaluate the agent in the multi-modal approach, the file `train_images_states.py` is used. To decide whether to train or evaluate the agent there is a variable inside the main called 'task', whose value can be 'train' or 'evaluate'.
 
-To train or evaluate the agent in the distillation approach, the file `main.py` inside the folder `distillation` is used. When this script is run it automatically trains and evaluate agents based on the knowledge distillation technique.
+To train or evaluate the agent in the distillation approach, the file `main.py` inside the folder `distillation` is used. When this script is run it automatically trains and evaluate agents based on the knowledge distillation technique. To generate the dataset, the 'generate_dataset' flag must be set to True. For both the distillation and PPO training steps, the script checks if a model with the correct path already exists. If it does, the model is loaded automatically and training is skipped.

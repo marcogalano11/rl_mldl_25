@@ -34,8 +34,8 @@ def main(generate_dataset):
     num_epochs = 20
 
     dataset_name = f"distillation/outputs/teacher_dataset_{num_episodes}eps"
-    student_policy_name = f"distillation/outputs/student_policy_{num_episodes}eps_{num_epochs}epochs.pt"
-    rl_model_name = f"distillation/outputs/student_rl_finetuned_{num_episodes}eps_{num_epochs}epochs"
+    student_policy_name = f"distillation/outputs/student_model_distilled.pt"
+    rl_model_name = f"distillation/outputs/student_policy_ppo"
 
     # 1. Teacher
     env_state = Monitor(CustomHopper(domain='source'))
