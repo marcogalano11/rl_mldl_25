@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import random
 import torch
 import argparse
-from train_sb3 import evaluate
+from sb3 import evaluate
 import os
 
 SEED = 42

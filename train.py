@@ -102,7 +102,7 @@ def main():
 		rewards.append(train_reward)
 
 
-	torch.save(agent.policy.state_dict(), f"{args.agent}.mdl")
+	torch.save(agent.policy.state_dict(), f"outputs_{args.agent}/{args.agent}.mdl")
 
 	save_rewards(rewards, args.agent)
 

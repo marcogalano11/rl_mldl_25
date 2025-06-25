@@ -118,7 +118,7 @@ def evaluate(model, test_env):
     
     obs = test_env.reset()
     mean_reward, std_reward = evaluate_policy(model, test_env, n_eval_episodes=50, deterministic=True, render=False)
-    print(f"Average reward: {mean_reward}, Average std: {std_reward}")
+    print(f"Average reward: {mean_reward}, std: {std_reward}")
 
 def evaluate_bounds(parameters, environment="source"):
 

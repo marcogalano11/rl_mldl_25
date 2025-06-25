@@ -43,20 +43,20 @@ def main():
 	if args.agent == "reinforce":
 
 		policy = RE.Policy(observation_space_dim, action_space_dim)
-		policy.load_state_dict(torch.load(f"{args.agent}.mdl"), strict=True)
+		policy.load_state_dict(torch.load(f"outputs_reinforce/{args.agent}.mdl"), strict=True)
 		agent = RE.Agent(policy, device=args.device)
 
 	elif args.agent == "reinforce_baseline":
 
 		baseline = 20
 		policy = RE.Policy(observation_space_dim, action_space_dim)
-		policy.load_state_dict(torch.load(f"{args.agent}.mdl"), strict=True)
+		policy.load_state_dict(torch.load(f"outputs_reinforce_baseline/{args.agent}.mdl"), strict=True)
 		agent = RE.Agent(policy, device=args.device, baseline=baseline)
 
 	elif args.agent == "actor_critic":
 	
 		policy = AC.Policy(observation_space_dim, action_space_dim)
-		policy.load_state_dict(torch.load(f"{args.agent}.mdl"), strict=True)
+		policy.load_state_dict(torch.load(f"outputs_actor_critic/{args.agent}.mdl"), strict=True)
 		agent = AC.Agent(policy, device=args.device)
 
 	else: 
