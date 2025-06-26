@@ -70,7 +70,7 @@ class CombinedExtractor(BaseFeaturesExtractor):
         state_dim = observation_space["state"].shape[0]
 
         self.linear = torch.nn.Sequential(
-            torch.nn.Linear(n_flatten + state_dim, 523),
+            torch.nn.Linear(n_flatten + state_dim, 512),
             torch.nn.ReLU()
         )
 
