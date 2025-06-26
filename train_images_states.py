@@ -34,7 +34,7 @@ def main():
     if task == "train":
         policy_kwargs = dict(
             features_extractor_class=CombinedExtractor,
-            features_extractor_kwargs=dict(features_dim=523) # oppure 512
+            features_extractor_kwargs=dict(features_dim=512) 
         )
 
         model = PPO("MultiInputPolicy", train_env, device='cpu', policy_kwargs=policy_kwargs, n_steps=1024,clip_range=0.1, verbose=1)
